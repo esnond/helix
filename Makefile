@@ -14,7 +14,8 @@ CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf keychain \
 CRYPTO_OBJ = $(addprefix src/,$(addsuffix .o,$(CRYPTO_SRC)))
 TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf \
              tests/test_keychain tests/test_evolution \
-             tests/test_backward_compat tests/test_forward_secrecy
+             tests/test_backward_compat tests/test_forward_secrecy \
+             tests/test_evolve
 
 all: libpetri.a $(TESTS) helix
 

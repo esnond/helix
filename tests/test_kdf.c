@@ -15,6 +15,9 @@
 /* herm_302.csv: 302 neurons plus 146 muscle/passive targets = 448
    unique nodes, all driven as cells by the engine */
 #define EXPECTED_CELLS 448
+/* frozen r0 derivation, vector 0 mnemonic + SALT_A; any change here is
+   an r0 breaking change and must bump the format version */
+#define EXPECTED_KEY "4b6d7dcd2c168ad86b7274f2bf5cb902141d9983493d6d1267bff08526a9f8b2"
 
 static int g_fail;
 static int g_ok;
@@ -72,6 +75,7 @@ int main(void)
     {
         char got[2 * HELIX_DERIVED_KEY_LEN + 1];
         hex_encode(k1, sizeof k1, got);
+        check(strcmp(got, EXPECTED_KEY) == 0, "frozen r0 derivation pinned");
         printf("key(case0,salt_a): %s\n", got);
     }
 

@@ -31,4 +31,17 @@ cmp /tmp/helix_d1.$$ /tmp/helix_d2.$$
 rm -f /tmp/helix_d1.$$ /tmp/helix_d2.$$
 echo "shell determinism: ok"
 
+echo "test: shell evolution determinism, two fresh keychains"
+KC1=/tmp/helix_shell_kc1.$$.db
+KC2=/tmp/helix_shell_kc2.$$.db
+G1=$(./helix evolve -k "$KC1" -m "$M")
+G2=$(./helix evolve -k "$KC2" -m "$M")
+[ "$G1" = "$G2" ] || { echo "FAIL: evolution sequences differ"; exit 1; }
+G3=$(./helix evolve -k "$KC1" -m "$M")
+G4=$(./helix evolve -k "$KC2" -m "$M")
+[ "$G3" = "$G4" ] || { echo "FAIL: gen 2 sequences differ"; exit 1; }
+[ "${G3%% *}" = "2" ] || { echo "FAIL: expected gen 2, got $G3"; exit 1; }
+rm -f "$KC1" "$KC2"
+echo "shell evolution determinism: ok"
+
 echo "tests: ok"

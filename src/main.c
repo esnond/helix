@@ -20,8 +20,16 @@ static void usage(FILE* out)
         "      -e also prints the raw entropy hex\n"
         "\n"
         "  derive -m \"word word ...\" [-s salt_hex] [-c connectome.csv]\n"
+        "           [-g generation] [-k keychain.db]\n"
         "      derive the 32 byte key from a mnemonic, print hex;\n"
-        "      salt defaults to empty, stats go to stderr\n");
+        "      salt defaults to empty, stats go to stderr;\n"
+        "      -g fetches an existing generation from the keychain\n"
+        "      instead of deriving (stateless gen 0 without -g)\n"
+        "\n"
+        "  evolve -m \"word word ...\" [-k keychain.db]\n"
+        "      advance the key evolution chain one generation\n"
+        "      (bootstraps gen 0 and gen 1 on first use) and print\n"
+        "      the new generation number and key hex\n");
 }
 
 static int cmd_gen_seed(int argc, char* argv[])
@@ -76,8 +84,10 @@ static int cmd_derive(int argc, char* argv[])
     const char* mnemonic = NULL;
     const char* connectome = NULL;
     const char* salt_hex = "";
-    int opt, rc;
-    while ((opt = getopt(argc, argv, "m:s:c:")) != -1) {
+    const char* kch = NULL;
+    uint32_t want_gen = 0;
+    int opt, rc, have_gen = 0;
+    while ((opt = getopt(argc, argv, "m:s:c:g:k:")) != -1) {
         switch (opt) {
         case 'm':
             mnemonic = optarg;
@@ -87,6 +97,13 @@ static int cmd_derive(int argc, char* argv[])
             break;
         case 'c':
             connectome = optarg;
+            break;
+        case 'g':
+            want_gen = (uint32_t)strtoul(optarg, NULL, 10);
+            have_gen = 1;
+            break;
+        case 'k':
+            kch = optarg;
             break;
         default:
             return 1;
@@ -100,7 +117,13 @@ static int cmd_derive(int argc, char* argv[])
         fprintf(stderr, "helix: bad salt hex\n");
         return 1;
     }
-    rc = helix_derive(mnemonic, salt, salt_len, connectome, key, &st);
+    if (have_gen) {
+        rc = helix_derive_generation(mnemonic, kch, want_gen, key);
+    } else {
+        rc = helix_derive(mnemonic, salt, salt_len, connectome, key, &st);
+        fprintf(stderr, "helix: %d cells, %lu iters, %ld steps\n",
+                st.n_cells, st.iters, st.steps);
+    }
     if (rc == -1) {
         fprintf(stderr, "helix: invalid mnemonic\n");
         return 2;
@@ -109,10 +132,59 @@ static int cmd_derive(int argc, char* argv[])
         fprintf(stderr, "helix: connectome init failed\n");
         return 3;
     }
+    if (rc == -3 || rc == -4) {
+        fprintf(stderr, "helix: keychain error (%d)\n", rc);
+        return 4;
+    }
     hex_encode(key, HELIX_DERIVED_KEY_LEN, out);
     printf("%s\n", out);
-    fprintf(stderr, "helix: %d cells, %lu iters, %ld steps\n",
-            st.n_cells, st.iters, st.steps);
+    if (have_gen)
+        fprintf(stderr, "helix: generation %u from keychain\n", want_gen);
+    return 0;
+}
+
+static int cmd_evolve(int argc, char* argv[])
+{
+    uint8_t key[HELIX_DERIVED_KEY_LEN];
+    helix_stats st;
+    char out[2 * HELIX_DERIVED_KEY_LEN + 1];
+    const char* mnemonic = NULL;
+    const char* kch = NULL;
+    uint32_t gen = 0;
+    int opt, rc;
+    while ((opt = getopt(argc, argv, "m:k:")) != -1) {
+        switch (opt) {
+        case 'm':
+            mnemonic = optarg;
+            break;
+        case 'k':
+            kch = optarg;
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (!mnemonic) {
+        usage(stderr);
+        return 1;
+    }
+    rc = helix_evolve(mnemonic, kch, &gen, key, &st);
+    if (rc == -1) {
+        fprintf(stderr, "helix: invalid mnemonic\n");
+        return 2;
+    }
+    if (rc == -2) {
+        fprintf(stderr, "helix: connectome init failed\n");
+        return 3;
+    }
+    if (rc == -3 || rc == -4) {
+        fprintf(stderr, "helix: keychain error (%d)\n", rc);
+        return 4;
+    }
+    hex_encode(key, HELIX_DERIVED_KEY_LEN, out);
+    printf("%u %s\n", gen, out);
+    if (st.n_cells > 0)
+        fprintf(stderr, "helix: bootstrapped gen 0 (%d cells)\n", st.n_cells);
     return 0;
 }
 
@@ -126,6 +198,8 @@ int main(int argc, char* argv[])
         return cmd_gen_seed(argc - 1, argv + 1);
     if (strcmp(argv[1], "derive") == 0)
         return cmd_derive(argc - 1, argv + 1);
+    if (strcmp(argv[1], "evolve") == 0)
+        return cmd_evolve(argc - 1, argv + 1);
     usage(stderr);
     return 1;
 }
