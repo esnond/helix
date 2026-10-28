@@ -23,4 +23,12 @@ for t in tests/test_*; do
     ./"$t" || exit 1
 done
 
+echo "test: shell determinism, two derive runs bitwise identical"
+M="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+./helix derive -s 00112233445566778899aabbccddeeff -m "$M" > /tmp/helix_d1.$$
+./helix derive -s 00112233445566778899aabbccddeeff -m "$M" > /tmp/helix_d2.$$
+cmp /tmp/helix_d1.$$ /tmp/helix_d2.$$
+rm -f /tmp/helix_d1.$$ /tmp/helix_d2.$$
+echo "shell determinism: ok"
+
 echo "tests: ok"

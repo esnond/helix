@@ -13,7 +13,10 @@ CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf
 CRYPTO_OBJ = $(addprefix src/,$(addsuffix .o,$(CRYPTO_SRC)))
 TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf
 
-all: libpetri.a $(TESTS)
+all: libpetri.a $(TESTS) helix
+
+helix: src/main.o $(CRYPTO_OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ src/main.o $(CRYPTO_OBJ) libpetri.a $(LDLIBS)
 
 vendor/petri/%.o: vendor/petri/%.c $(wildcard vendor/petri/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
