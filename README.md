@@ -21,14 +21,15 @@ c99, posix subset, no external libraries. the petri engine (c.
 elegans connectome simulator, v1.0.1) is vendored verbatim under
 vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
 
-status: r1 + security hardening pass. seed generation, deterministic
-key derivation (r0) and key evolution (r1) work: an append-only
-keychain, xor recombination with bounded bit mutation, generation
-retrieval, shell-level chain determinism. timing analysis, side
+status: r2. seed generation, deterministic key derivation (r0), key
+evolution (r1), the security hardening pass and the .dna encrypted
+archive format (r2, chacha20 poly1305 per rfc 8439) are done: encrypt
+and decrypt files from the mnemonic alone. timing analysis, side
 channel audit and a five configuration determinism matrix are in
-results/. the .dna archive format (r2), post quantum crypto (r3),
-the directory service (r4) and the gui (r5) are future milestones.
-r1 details: docs/r1_spec.md, docs/r1_security.md.
+results/. post quantum crypto (r3) is next; the directory service
+(r4) and the gui (r5) wait on toolchains, see
+docs/roadmap_status.md. milestone docs: docs/r1_spec.md,
+docs/r1_security.md, docs/dna_format.md.
 
 ## what this is
 
@@ -99,6 +100,15 @@ mutation of 32..64 bits (see docs/r1_spec.md):
     ./helix evolve -m "..."        # first call bootstraps gens 0 and 1
     ./helix evolve -m "..."        # advances to gen 2, 3, ...
     ./helix derive -m "..." -g 5   # fetch generation 5 from the keychain
+
+encrypted archives (.dna format, r2):
+
+    ./helix encrypt report.pdf report.pdf.dna -m "..."
+    ./helix decrypt report.pdf.dna report.pdf -m "..."
+
+decryption needs only the mnemonic; the generation key is recomputed
+from the evolution chain, the keychain is a cache. format spec:
+docs/dna_format.md.
 
 keychain: append-only $HOME/.helix-kch-<fingerprint>.db, 0600, all
 past generations retrievable. evolution stats: 32..64 flips per
