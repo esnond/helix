@@ -46,9 +46,16 @@ tools/evolve_chain: tools/evolve_chain.o $(CRYPTO_OBJ) libpetri.a
 tools/evolve_chain.o: tools/evolve_chain.c $(wildcard src/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+tools/timing_bench: tools/timing_bench.o $(CRYPTO_OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ $< $(CRYPTO_OBJ) libpetri.a $(LDLIBS)
+
+tools/timing_bench.o: tools/timing_bench.c $(wildcard src/*.h)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
 clean:
 	rm -f vendor/petri/*.o src/*.o libpetri.a $(TESTS) tests/*.o helix \
-	      tools/evolve_chain tools/evolve_chain.o
+	      tools/evolve_chain tools/evolve_chain.o \
+	      tools/timing_bench tools/timing_bench.o
 
 # determinism-gate: the full suite must exit 0 under ubsan and asan.
 # LD_PRELOAD is cleared: a preloaded library before the asan runtime
