@@ -9,6 +9,8 @@
 #include "bip39.h"
 #include "entropy.h"
 #include "kdf.h"
+#include "keychain.h"
+#include "dna.h"
 
 static void usage(FILE* out)
 {
@@ -29,7 +31,17 @@ static void usage(FILE* out)
         "  evolve -m \"word word ...\" [-k keychain.db]\n"
         "      advance the key evolution chain one generation\n"
         "      (bootstraps gen 0 and gen 1 on first use) and print\n"
-        "      the new generation number and key hex\n");
+        "      the new generation number and key hex\n"
+        "\n"
+        "  encrypt <in> <out.dna> -m \"word word ...\" [-k keychain.db]\n"
+        "           [-g generation]\n"
+        "      encrypt a file into the .dna archive format; the\n"
+        "      generation defaults to the current keychain generation\n"
+        "      (or 0 without a keychain)\n"
+        "\n"
+        "  decrypt <in.dna> <out> -m \"word word ...\" [-k keychain.db]\n"
+        "      decrypt a .dna archive; the generation key is recomputed\n"
+        "      from the mnemonic, the keychain is only a cache\n");
 }
 
 static int cmd_gen_seed(int argc, char* argv[])
@@ -143,6 +155,104 @@ static int cmd_derive(int argc, char* argv[])
     return 0;
 }
 
+static int cmd_encrypt(int argc, char* argv[])
+{
+    const char* mnemonic = NULL;
+    const char* kch = NULL;
+    const char* in = NULL;
+    const char* out = NULL;
+    uint32_t gen = 0;
+    int have_gen = 0, opt;
+    while ((opt = getopt(argc, argv, "m:k:g:")) != -1) {
+        switch (opt) {
+        case 'm':
+            mnemonic = optarg;
+            break;
+        case 'k':
+            kch = optarg;
+            break;
+        case 'g':
+            gen = (uint32_t)strtoul(optarg, NULL, 10);
+            have_gen = 1;
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (argc - optind != 2 || !mnemonic) {
+        usage(stderr);
+        return 1;
+    }
+    in = argv[optind];
+    out = argv[optind + 1];
+    if (!have_gen) {
+        /* default generation: current keychain generation if a
+           keychain exists, else gen 0 (documented state dependency) */
+        if (helix_current_generation(mnemonic, kch, &gen) != 0)
+            gen = 0;
+    }
+    switch (dna_encrypt_file(in, out, mnemonic, kch, gen)) {
+    case 0:
+        fprintf(stderr, "helix: encrypted %s -> %s (generation %u)\n",
+                in, out, gen);
+        return 0;
+    case -3:
+        fprintf(stderr, "helix: generation %u unavailable\n", gen);
+        return 4;
+    case -5:
+        fprintf(stderr, "helix: out of memory\n");
+        return 5;
+    default:
+        fprintf(stderr, "helix: encrypt failed (io error)\n");
+        return 1;
+    }
+}
+
+static int cmd_decrypt(int argc, char* argv[])
+{
+    const char* mnemonic = NULL;
+    const char* kch = NULL;
+    const char* in = NULL;
+    const char* out = NULL;
+    int opt;
+    while ((opt = getopt(argc, argv, "m:k:")) != -1) {
+        switch (opt) {
+        case 'm':
+            mnemonic = optarg;
+            break;
+        case 'k':
+            kch = optarg;
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (argc - optind != 2 || !mnemonic) {
+        usage(stderr);
+        return 1;
+    }
+    in = argv[optind];
+    out = argv[optind + 1];
+    switch (dna_decrypt_file(in, out, mnemonic, kch)) {
+    case 0:
+        fprintf(stderr, "helix: decrypted %s -> %s\n", in, out);
+        return 0;
+    case -2:
+        fprintf(stderr, "helix: not a valid .dna file\n");
+        return 2;
+    case -3:
+        fprintf(stderr, "helix: generation key unavailable\n");
+        return 4;
+    case -4:
+        fprintf(stderr, "helix: authentication failed "
+                        "(wrong mnemonic or corrupted file)\n");
+        return 5;
+    default:
+        fprintf(stderr, "helix: decrypt failed (io error)\n");
+        return 1;
+    }
+}
+
 static int cmd_evolve(int argc, char* argv[])
 {
     uint8_t key[HELIX_DERIVED_KEY_LEN];
@@ -200,6 +310,10 @@ int main(int argc, char* argv[])
         return cmd_derive(argc - 1, argv + 1);
     if (strcmp(argv[1], "evolve") == 0)
         return cmd_evolve(argc - 1, argv + 1);
+    if (strcmp(argv[1], "encrypt") == 0)
+        return cmd_encrypt(argc - 1, argv + 1);
+    if (strcmp(argv[1], "decrypt") == 0)
+        return cmd_decrypt(argc - 1, argv + 1);
     usage(stderr);
     return 1;
 }

@@ -253,3 +253,84 @@ int helix_derive_generation(const char* mnemonic, const char* keychain_path,
     memset(mk, 0, sizeof mk);
     return rc;
 }
+
+int helix_current_generation(const char* mnemonic, const char* keychain_path,
+                             uint32_t* gen)
+{
+    uint8_t mk[HELIX_MASTER_KEY_LEN], fp[KEYCHAIN_FP_LEN];
+    char path[4096];
+    keychain_t kc;
+    *gen = 0;
+    if (helix_master_key_from_mnemonic(mnemonic, NULL, 0, mk) != 0)
+        return -1;
+    master_fp(mk, fp);
+    if (keychain_path) {
+        if (strlen(keychain_path) < sizeof path)
+            strcpy(path, keychain_path);
+        else
+            path[0] = '\0';
+    } else if (helix_keychain_path(mk, path, sizeof path) != 0) {
+        path[0] = '\0';   /* no HOME: treat as no keychain */
+    }
+    if (path[0] != '\0' && keychain_open(&kc, path, fp) == 0) {
+        if (kc.n_entries > 0)
+            *gen = kc.current_gen;
+        keychain_close(&kc);
+    }
+    memset(mk, 0, sizeof mk);
+    return 0;
+}
+
+int helix_generation_key(const char* mnemonic, const char* keychain_path,
+                         uint32_t gen, uint8_t key[HELIX_DERIVED_KEY_LEN])
+{
+    uint8_t mk[HELIX_MASTER_KEY_LEN], fp[KEYCHAIN_FP_LEN];
+    uint8_t g0[32], prev[32], prev2[32], cur[32];
+    char path[4096];
+    keychain_t kc;
+    uint32_t n;
+    int rc, have_cache = 0;
+    if (helix_master_key_from_mnemonic(mnemonic, NULL, 0, mk) != 0)
+        return -1;
+    master_fp(mk, fp);
+    if (keychain_path && strlen(keychain_path) < sizeof path) {
+        strcpy(path, keychain_path);
+        if (keychain_open(&kc, path, fp) == 0) {
+            have_cache = (keychain_get(&kc, gen, key) == 0);
+            keychain_close(&kc);
+        }
+    }
+    if (have_cache) {
+        memset(mk, 0, sizeof mk);
+        return 0;
+    }
+    /* recompute the chain: gen 0 is the engine phase, gen n the
+       recombination of its two parents, exactly as helix_evolve */
+    rc = helix_engine_phase(mk, NULL, g0, NULL);
+    if (rc != 0) {
+        memset(mk, 0, sizeof mk);
+        return -2;
+    }
+    if (gen == 0) {
+        memcpy(key, g0, 32);
+    } else {
+        memcpy(prev, g0, 32);
+        memcpy(prev2, g0, 32);
+        for (n = 1; n <= gen; n++) {
+            if (evolution_recombine(mk, HELIX_MASTER_KEY_LEN, n,
+                                    prev, prev2, cur) != 0) {
+                memset(mk, 0, sizeof mk);
+                return -2;
+            }
+            memcpy(prev2, prev, 32);
+            memcpy(prev, cur, 32);
+        }
+        memcpy(key, prev, 32);
+    }
+    memset(mk, 0, sizeof mk);
+    memset(g0, 0, sizeof g0);
+    memset(prev, 0, sizeof prev);
+    memset(prev2, 0, sizeof prev2);
+    memset(cur, 0, sizeof cur);
+    return 0;
+}

@@ -44,4 +44,19 @@ G4=$(./helix evolve -k "$KC2" -m "$M")
 rm -f "$KC1" "$KC2"
 echo "shell evolution determinism: ok"
 
+echo "test: cli dna roundtrip (1 mb random file)"
+head -c 1048576 /dev/urandom > /tmp/helix_cli.bin
+./helix encrypt /tmp/helix_cli.bin /tmp/helix_cli.dna -m "$M" -g 0
+./helix decrypt /tmp/helix_cli.dna /tmp/helix_cli.out -m "$M"
+cmp /tmp/helix_cli.bin /tmp/helix_cli.out
+./helix decrypt /tmp/helix_cli.dna /tmp/helix_cli.out -m "$M" \
+    -k /tmp/helix_no_such_kch.db
+cmp /tmp/helix_cli.bin /tmp/helix_cli.out
+if ./helix decrypt /tmp/helix_cli.dna /tmp/helix_cli.out \
+    -m "abandon abandon abandon" 2>/dev/null; then
+    echo "FAIL: bad mnemonic decrypt must fail"; exit 1
+fi
+rm -f /tmp/helix_cli.bin /tmp/helix_cli.dna /tmp/helix_cli.out
+echo "cli dna roundtrip: ok"
+
 echo "tests: ok"

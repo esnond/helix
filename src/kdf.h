@@ -69,4 +69,20 @@ int helix_derive_generation(const char* mnemonic, const char* keychain_path,
                             uint32_t gen,
                             uint8_t key[HELIX_DERIVED_KEY_LEN]);
 
+/* generation key for file decryption (r2). the chain is a pure
+   function of the mnemonic, so the key is recomputed when the
+   keychain does not have the generation; the keychain is only a
+   cache and is never written here.
+   keychain_path NULL or a miss falls back to recomputation.
+   returns 0, -1 bad mnemonic, -2 engine init failed, -4 HOME unset
+   (only when keychain_path NULL and HOME missing). */
+int helix_generation_key(const char* mnemonic, const char* keychain_path,
+                         uint32_t gen, uint8_t key[HELIX_DERIVED_KEY_LEN]);
+
+/* current generation for encrypt's default: the keychain's highest
+   generation, or 0 when no keychain exists (documented default).
+   returns 0, -1 bad mnemonic. */
+int helix_current_generation(const char* mnemonic, const char* keychain_path,
+                             uint32_t* gen);
+
 #endif
