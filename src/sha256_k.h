@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 static const uint32_t SHA256_IV[8] = {
-0xf3bcc908u, 0x84caa73bu, 0xfe94f82bu, 0x5f1d36f1u, 0xade682d1u, 0x2b3e6c1fu, 0xfb41bd6bu, 0x137e2179u
+0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au, 0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u
 };
 
 static const uint32_t SHA256_K[64] = {

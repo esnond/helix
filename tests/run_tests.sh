@@ -15,4 +15,12 @@ EOF
 echo "test: generated headers reproducible"
 python3 tools/gen_vectors.py --check
 
+for t in tests/test_*; do
+    case "$t" in
+    *.c|*.o|*.h) continue ;;
+    esac
+    echo "test: $(basename "$t")"
+    ./"$t" || exit 1
+done
+
 echo "tests: ok"

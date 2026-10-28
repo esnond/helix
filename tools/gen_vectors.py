@@ -80,7 +80,7 @@ def gen_sha_tables():
     """fips 180-4 constants from first principles: frac parts of
     sqrt(prime) for the ivs and cbrt(prime) for the round constants."""
     p8 = primes(8)
-    iv32 = [(isqrt(p << 128) & 0xFFFFFFFF) for p in p8]
+    iv32 = [(isqrt(p << 64) & 0xFFFFFFFF) for p in p8]
     k32 = [(icbrt(p << 96) & 0xFFFFFFFF) for p in primes(64)]
     iv64 = [(isqrt(p << 128) & 0xFFFFFFFFFFFFFFFF) for p in p8]
     k64 = [(icbrt(p << 192) & 0xFFFFFFFFFFFFFFFF) for p in primes(80)]
