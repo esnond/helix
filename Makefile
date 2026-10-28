@@ -40,8 +40,15 @@ tests/test_%.o: tests/test_%.c $(wildcard src/*.h) $(wildcard tests/*.h)
 test: libpetri.a $(TESTS) helix
 	sh tests/run_tests.sh
 
+tools/evolve_chain: tools/evolve_chain.o $(CRYPTO_OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ $< $(CRYPTO_OBJ) libpetri.a $(LDLIBS)
+
+tools/evolve_chain.o: tools/evolve_chain.c $(wildcard src/*.h)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
 clean:
-	rm -f vendor/petri/*.o src/*.o libpetri.a $(TESTS) tests/*.o helix
+	rm -f vendor/petri/*.o src/*.o libpetri.a $(TESTS) tests/*.o helix \
+	      tools/evolve_chain tools/evolve_chain.o
 
 # determinism-gate: the full suite must exit 0 under ubsan and asan.
 # LD_PRELOAD is cleared: a preloaded library before the asan runtime

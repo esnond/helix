@@ -34,6 +34,7 @@ int hex_decode(const char* in, uint8_t* out, size_t out_max, size_t* out_len)
             return -1;
         out[i / 2] = (uint8_t)((hi << 4) | lo);
     }
-    *out_len = n / 2;
+    if (out_len)   /* may be NULL when the caller knows the size */
+        *out_len = n / 2;
     return 0;
 }

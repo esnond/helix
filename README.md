@@ -7,9 +7,12 @@ c99, posix subset, no external libraries. the petri engine (c.
 elegans connectome simulator, v1.0.1) is vendored verbatim under
 vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
 
-status: r0 skeleton. seed generation and deterministic key derivation
-work. key evolution, the .dna archive format, post quantum crypto,
-the directory service and the gui are future milestones.
+status: r1. seed generation, deterministic key derivation (r0) and key
+evolution (r1) work: an append-only keychain, xor recombination with
+bounded bit mutation, generation retrieval, shell-level chain
+determinism. the .dna archive format (r2), post quantum crypto (r3),
+the directory service (r4) and the gui (r5) are future milestones.
+r1 details: docs/r1_spec.md, docs/r1_security.md.
 
 ## build
 
@@ -26,12 +29,26 @@ generate a seed (24 words default, 12 with -w 12):
     ./helix gen-seed
     ./helix gen-seed -w 12 -e     # also print the raw entropy
 
-derive a key:
+derive a key (stateless gen 0, r0 semantics):
 
     ./helix derive -m "word1 word2 ..." [-s salt_hex] [-c connectome.csv]
 
+key evolution (r1): the chain is a pure function of the mnemonic, the
+keychain is a cache. gen 0 is the stateless derivation, each further
+generation is xor recombination of the two parents plus a bounded
+mutation of 32..64 bits (see docs/r1_spec.md):
+
+    ./helix evolve -m "..."        # first call bootstraps gens 0 and 1
+    ./helix evolve -m "..."        # advances to gen 2, 3, ...
+    ./helix derive -m "..." -g 5   # fetch generation 5 from the keychain
+
+keychain: append-only $HOME/.helix-kch-<fingerprint>.db, 0600, all
+past generations retrievable. evolution stats: 32..64 flips per
+generation (mean 48), consecutive-generation hamming distance mean
+127.7 (results/r1_evolution_report.md).
+
 key hex on stdout, engine stats on stderr. exit codes: 0 ok,
-2 invalid mnemonic, 3 engine init failure.
+2 invalid mnemonic, 3 engine init failure, 4 keychain error.
 
 ## key derivation (r0 spec)
 
@@ -65,7 +82,19 @@ salt: r0 accepts an arbitrary hex salt, default empty. the empty
 default is a placeholder; the .dna format (r2) will carry a unique
 per file salt. do not rely on the empty salt for anything real.
 
-## crypto core
+## security claims
+
+none beyond the primitives. pbkdf2-hmac-sha512 at 600k iterations
+and chacha-free symmetric later are standard; the connectome
+trajectory as a kdf is a research claim, not an audited primitive.
+strength claims wait for the r6 threat model and review. r1 forward
+secrecy is analyzed honestly in docs/r1_security.md: single leaked
+generation hides its neighbors behind ~2^256 masks, but the keychain
+stores every past key in plaintext, so keychain protection equals
+mnemonic protection. what r0/r1 do guarantee: bitwise reproducibility,
+checksum validated seeds, and zeroization of master key material
+after use (best effort, documented memset; the simulator also holds
+derived state).
 
 sha256, sha512 (fips 180-4), hmac-sha512 (rfc 2104), pbkdf2
 (rfc 8018) written from spec, no external crypto library. round
@@ -81,14 +110,6 @@ the identity; passphrases with non ascii characters are not
 normalized (documented in src/bip39.h).
 
 ## security claims, r0
-
-none beyond the primitives. pbkdf2-hmac-sha512 at 600k iterations
-and chacha-free symmetric later are standard; the connectome
-trajectory as a kdf is a research claim, not an audited primitive.
-strength claims wait for the r6 threat model and review. what r0
-does guarantee: bitwise reproducibility, checksum validated seeds,
-and zeroization of master key material after use (best effort,
-documented memset; the simulator also holds derived state).
 
 known limitations, honest:
 
