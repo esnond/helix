@@ -9,9 +9,11 @@ LDLIBS   = -lm
 VENDOR_SRC = sim connectome neuron body world modulators plasticity \
              metrics rng gcamp mutants evolution
 VENDOR_OBJ = $(addprefix vendor/petri/,$(addsuffix .o,$(VENDOR_SRC)))
-CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf keychain
+CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf keychain \
+             evolve
 CRYPTO_OBJ = $(addprefix src/,$(addsuffix .o,$(CRYPTO_SRC)))
-TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf tests/test_keychain
+TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf \
+             tests/test_keychain tests/test_evolution
 
 all: libpetri.a $(TESTS) helix
 
