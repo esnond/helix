@@ -1,0 +1,5 @@
+*.o
+libpetri.a
+libhelix.a
+helix
+/tests/test_*
