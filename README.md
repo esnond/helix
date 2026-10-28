@@ -1,0 +1,115 @@
+# helix
+
+biologically inspired key manager: a bip39 seed drives a petri
+connectome simulation, and the trajectory of the network is the key.
+
+c99, posix subset, no external libraries. the petri engine (c.
+elegans connectome simulator, v1.0.1) is vendored verbatim under
+vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
+
+status: r0 skeleton. seed generation and deterministic key derivation
+work. key evolution, the .dna archive format, post quantum crypto,
+the directory service and the gui are future milestones.
+
+## build
+
+    make            # -std=c99 -pedantic -Wall -Wextra -Werror -O2
+                    # -ffp-contract=off, warnings are errors
+    make test       # unit vectors, kdf determinism, shell cmp gate
+    make test-san   # whole suite under asan+ubsan (~90 s)
+    make clean
+
+## usage
+
+generate a seed (24 words default, 12 with -w 12):
+
+    ./helix gen-seed
+    ./helix gen-seed -w 12 -e     # also print the raw entropy
+
+derive a key:
+
+    ./helix derive -m "word1 word2 ..." [-s salt_hex] [-c connectome.csv]
+
+key hex on stdout, engine stats on stderr. exit codes: 0 ok,
+2 invalid mnemonic, 3 engine init failure.
+
+## key derivation (r0 spec)
+
+1. entropy = bip39 decode of the mnemonic, checksum verified
+   (16 bytes for 12 words, 32 for 24)
+2. master_key = pbkdf2_hmac_sha512(entropy, salt, 600000 iterations,
+   64 bytes)
+3. the vendored engine is initialized with connectome
+   vendor/petri/data/herm_302.csv (448 cells: 302 neurons plus
+   muscle/passive targets) and seeded from the master key:
+   rng seed = master_key bytes 0..7 big endian; each cell's initial
+   membrane potential is offset by master_key byte 8+(i mod 56)
+   interpreted signed, scaled to +/- 2 mv
+4. 10000 simulation steps at the engine dt of 1 ms
+5. after every step, every cell's activation (sigmoid transfer,
+   0..1) is quantized to one byte (round to nearest) and streamed
+   into sha256
+6. derived_key = the 32 byte sha256 digest
+
+determinism: same mnemonic + salt + connectome + binary gives the
+same 32 bytes, bitwise. enforced by the suite: in process replay
+(test_kdf) and two cli runs compared with cmp (run_tests.sh). this
+inherits the engine's determinism discipline: xorshift64* only, no
+wall clock in the sim path, fixed fp operation order under
+-ffp-contract=off.
+
+salt: r0 accepts an arbitrary hex salt, default empty. the empty
+default is a placeholder; the .dna format (r2) will carry a unique
+per file salt. do not rely on the empty salt for anything real.
+
+## crypto core
+
+sha256, sha512 (fips 180-4), hmac-sha512 (rfc 2104), pbkdf2
+(rfc 8018) written from spec, no external crypto library. round
+constants are generated from first principles (integer sqrt/cbrt of
+the first primes) by tools/gen_vectors.py, which also emits the
+wordlist header and all expected test values. every primitive is
+pinned against python hashlib/hmac stdlib output, rfc 4231 hmac
+cases, and the official bip-0039 english vector set (24 vectors,
+passphrase TREZOR): 175 checks green, plus asan+ubsan.
+
+the english bip39 wordlist is pure ascii, so nfkd normalization is
+the identity; passphrases with non ascii characters are not
+normalized (documented in src/bip39.h).
+
+## security claims, r0
+
+none beyond the primitives. pbkdf2-hmac-sha512 at 600k iterations
+and chacha-free symmetric later are standard; the connectome
+trajectory as a kdf is a research claim, not an audited primitive.
+strength claims wait for the r6 threat model and review. what r0
+does guarantee: bitwise reproducibility, checksum validated seeds,
+and zeroization of master key material after use (best effort,
+documented memset; the simulator also holds derived state).
+
+known limitations, honest:
+
+- cross platform replay is expected to hold where the engine's does
+  (same architecture class, same flags) but is only tested on this
+  machine; a key derived elsewhere must be verified against a
+  recorded key fingerprint before trust
+- 2.8 s per derivation is by design (brute force cost), but it also
+  makes interactive use slow
+- /dev/urandom only for seed generation; no hwrng fallback
+- memory zeroization is best effort memset, not page locking
+
+## layout
+
+    src/          helix code: crypto core, bip39, kdf driver, cli
+    vendor/petri/ verbatim engine import, provenance in VENDORED.md
+    data/         bip39 english wordlist, official vector cache
+    tests/        vector and determinism tests, run_tests.sh
+    tools/        gen_vectors.py: generated headers + provenance
+
+## connection to petri
+
+the engine keeps its semantics untouched: helix seeds it and reads
+activations, nothing inside vendor/ is modified. the derivation is
+therefore exactly as deterministic as the engine's own published
+determinism gates, and any future engine determinism regression
+shows up here as a kdf determinism failure.
