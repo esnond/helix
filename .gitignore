@@ -2,6 +2,8 @@
 libpetri.a
 libhelix.a
 helix
+/tools/timing_bench
+/tools/evolve_chain
 /tests/test_*
 !/tests/test_*.c
 !/tests/test_*.h

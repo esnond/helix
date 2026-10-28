@@ -1,18 +1,76 @@
 # helix
 
-biologically inspired key manager: a bip39 seed drives a petri
-connectome simulation, and the trajectory of the network is the key.
+> **WARNING: research prototype, NOT production cryptography.**
+> do not use this for real secrets. the crypto is written from
+> scratch and has never been audited, the key derivation rests on a
+> float based simulation whose bitwise replay is proven only within
+> one build environment class, and the side channel surface is
+> analyzed but not eliminated. for production use established
+> libraries: libsodium, age, openssl. this project exists to study a
+> question, not to protect anything.
+
+research prototype: biological dynamics in a key derivation function.
+a bip39 seed drives a petri connectome simulation, and the trajectory
+of the network is the key. the honest one line summary: the
+trajectory provably does not add entropy - every key is a deterministic
+function of the master key - what the simulation adds is per
+generation key diversity and computational cost, wrapped in a fully
+reproducible pipeline.
 
 c99, posix subset, no external libraries. the petri engine (c.
 elegans connectome simulator, v1.0.1) is vendored verbatim under
 vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
 
-status: r1. seed generation, deterministic key derivation (r0) and key
-evolution (r1) work: an append-only keychain, xor recombination with
-bounded bit mutation, generation retrieval, shell-level chain
-determinism. the .dna archive format (r2), post quantum crypto (r3),
+status: r1 + security hardening pass. seed generation, deterministic
+key derivation (r0) and key evolution (r1) work: an append-only
+keychain, xor recombination with bounded bit mutation, generation
+retrieval, shell-level chain determinism. timing analysis, side
+channel audit and a five configuration determinism matrix are in
+results/. the .dna archive format (r2), post quantum crypto (r3),
 the directory service (r4) and the gui (r5) are future milestones.
 r1 details: docs/r1_spec.md, docs/r1_security.md.
+
+## what this is
+
+- research on using biological dynamics (a 448 cell connectome
+  trajectory) as a key derivation stage
+- proof of concept that the whole pipeline is bitwise deterministic
+  within a build environment class (five compiler configurations,
+  one key)
+- an educational, fully from scratch implementation of sha256/sha512/
+  hmac/pbkdf2/bip39 with every value pinned to stdlib cross checks
+
+## what this is not
+
+- an audited cryptographic library
+- a production key manager
+- a replacement for argon2, scrypt, pbkdf2-as-deployed, age or
+  libsodium
+- quantum resistant (r3 planned, nothing shipped)
+
+## security guarantees
+
+guaranteed (test enforced):
+
+- same mnemonic + salt + build environment = same key, bitwise
+  (pinned in tests, five config matrix in results/cross_platform/)
+- bip39 compliance with the official vector set (24/24, passphrase
+  TREZOR)
+- constant time comparison in keycheck, branchless mutation
+  selection (results/timing_analysis/, results/side_channel_audit/)
+
+not guaranteed:
+
+- side channel resistance beyond what is measured (power, em,
+  microarchitectural attacks are unmeasured)
+- bitwise replay across architectures, operating systems or libm
+  versions (float analysis: results/cross_platform/float_analysis.md)
+- any strength claim for the connectome stage beyond computational
+  cost (no formal security proof exists or is claimed)
+
+needs further research: a reduction argument for the trajectory
+stage, cross platform replay, third party audit. see
+docs/threat_model.md, docs/security_claims.md, docs/limitations.md.
 
 ## build
 
@@ -84,17 +142,13 @@ per file salt. do not rely on the empty salt for anything real.
 
 ## security claims
 
-none beyond the primitives. pbkdf2-hmac-sha512 at 600k iterations
-and chacha-free symmetric later are standard; the connectome
-trajectory as a kdf is a research claim, not an audited primitive.
-strength claims wait for the r6 threat model and review. r1 forward
-secrecy is analyzed honestly in docs/r1_security.md: single leaked
-generation hides its neighbors behind ~2^256 masks, but the keychain
-stores every past key in plaintext, so keychain protection equals
-mnemonic protection. what r0/r1 do guarantee: bitwise reproducibility,
-checksum validated seeds, and zeroization of master key material
-after use (best effort, documented memset; the simulator also holds
-derived state).
+r1 forward secrecy is analyzed honestly in docs/r1_security.md:
+single leaked generation hides its neighbors behind ~2^256 masks, but
+the keychain stores every past key in plaintext, so keychain
+protection equals mnemonic protection. what r0/r1 do guarantee:
+bitwise reproducibility, checksum validated seeds, and zeroization of
+master key material after use (best effort, documented memset; the
+simulator also holds derived state).
 
 sha256, sha512 (fips 180-4), hmac-sha512 (rfc 2104), pbkdf2
 (rfc 8018) written from spec, no external crypto library. round
