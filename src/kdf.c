@@ -81,9 +81,14 @@ int helix_engine_phase(const uint8_t mk[HELIX_MASTER_KEY_LEN],
     sha256_ctx hc;
     long step;
     int i, n_cells, rc = 0;
-    if (petri_init(&sim, mk,
-                   connectome ? connectome : HELIX_CONNECTOME_PATH) != 0)
-        return -2;
+    {
+        const char* env = getenv("HELIX_CONNECTOME");
+        const char* path = connectome;
+        if (!path)
+            path = (env && *env) ? env : HELIX_CONNECTOME_PATH;
+        if (petri_init(&sim, mk, path) != 0)
+            return -2;
+    }
     n_cells = sim.ns.n;
     sha256_init(&hc);
     for (step = 0; step < HELIX_KDF_STEPS; step++) {
