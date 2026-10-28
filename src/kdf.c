@@ -84,6 +84,10 @@ int helix_derive(const char* mnemonic,
             acts[i] = (uint8_t)(neuron_act(&sim.ns.cells[i]) * 255.0f + 0.5f);
         sha256_update(&hc, acts, (size_t)n_cells);
     }
+    /* the trajectory is contractive under a fixed noise stream, so the
+       initial membrane offsets (master key bytes 8..63) can decay away;
+       folding the full master key in keeps every key byte load bearing */
+    sha256_update(&hc, mk, HELIX_MASTER_KEY_LEN);
     sha256_final(&hc, out);
     if (stats) {
         stats->n_cells = n_cells;
@@ -91,6 +95,8 @@ int helix_derive(const char* mnemonic,
         stats->steps = HELIX_KDF_STEPS;
     }
     memset(mk, 0, sizeof mk);
+    memset(acts, 0, sizeof acts);
+    memset(&hc, 0, sizeof hc);
     memset(&sim, 0, sizeof sim);
     return rc;
 }

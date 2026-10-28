@@ -33,7 +33,7 @@ tests/test_%: tests/test_%.o $(CRYPTO_OBJ) libpetri.a
 tests/test_%.o: tests/test_%.c $(wildcard src/*.h) $(wildcard tests/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -Itests -c -o $@ $<
 
-test: libpetri.a $(TESTS)
+test: libpetri.a $(TESTS) helix
 	sh tests/run_tests.sh
 
 clean:

@@ -49,7 +49,10 @@ key hex on stdout, engine stats on stderr. exit codes: 0 ok,
 5. after every step, every cell's activation (sigmoid transfer,
    0..1) is quantized to one byte (round to nearest) and streamed
    into sha256
-6. derived_key = the 32 byte sha256 digest
+6. derived_key = sha256(trajectory || master_key), 32 bytes. the
+   master key is folded into the digest because the trajectory is
+   contractive under a fixed noise stream: membrane offsets alone
+   would not keep master key bytes 8..63 load bearing
 
 determinism: same mnemonic + salt + connectome + binary gives the
 same 32 bytes, bitwise. enforced by the suite: in process replay
