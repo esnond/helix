@@ -9,9 +9,9 @@ LDLIBS   = -lm
 VENDOR_SRC = sim connectome neuron body world modulators plasticity \
              metrics rng gcamp mutants evolution
 VENDOR_OBJ = $(addprefix vendor/petri/,$(addsuffix .o,$(VENDOR_SRC)))
-CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39
+CRYPTO_SRC = hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf
 CRYPTO_OBJ = $(addprefix src/,$(addsuffix .o,$(CRYPTO_SRC)))
-TESTS      = tests/test_vectors tests/test_bip39
+TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf
 
 all: libpetri.a $(TESTS)
 
@@ -34,6 +34,14 @@ test: libpetri.a $(TESTS)
 	sh tests/run_tests.sh
 
 clean:
-	rm -f vendor/petri/*.o src/*.o libpetri.a tests/test_* tests/test_*.o helix
+	rm -f vendor/petri/*.o src/*.o libpetri.a $(TESTS) tests/*.o helix
 
-.PHONY: all test clean
+# determinism-gate: the full suite must exit 0 under ubsan and asan.
+# LD_PRELOAD is cleared: a preloaded library before the asan runtime
+# aborts every sanitized binary at startup.
+test-san:
+	$(MAKE) clean
+	LD_PRELOAD= $(MAKE) CFLAGS="-std=c99 -pedantic -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined" test
+	$(MAKE) clean
+
+.PHONY: all test test-san clean

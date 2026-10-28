@@ -3,3 +3,5 @@ libpetri.a
 libhelix.a
 helix
 /tests/test_*
+!/tests/test_*.c
+!/tests/test_*.h
