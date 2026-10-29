@@ -44,9 +44,9 @@
    share with an external pair: session =
    sha256(kyber_ss || chain_key || "helix-v3-external").
 
-   returns 0 ok; -1 io; -2 bad format; -3 generation unavailable;
+   returns 0 ok; -1 io; -2 bad format; -3 engine/keychain failure;
    -4 authentication failed; -5 out of memory; -6 output exists
-   (encrypt only). */
+   (encrypt only); -7 invalid mnemonic (bip39 decode). */
 int dna_encrypt_file(const char* in_path, const char* out_path,
                      const char* mnemonic, const char* keychain_path,
                      uint32_t generation);

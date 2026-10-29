@@ -162,9 +162,14 @@ int dna_encrypt_file_ex(const char* in_path, const char* out_path,
     int rc;
     if (output_exists(out_path))
         return -6;
-    if (helix_generation_key(mnemonic, keychain_path, generation,
-                             gen_key) != 0)
-        return -3;
+    {
+        int gk = helix_generation_key(mnemonic, keychain_path, generation,
+                                      gen_key);
+        if (gk == -1)
+            return -7;   /* invalid mnemonic, distinguish from engine */
+        if (gk != 0)
+            return -3;
+    }
     memset(header, 0, sizeof header);
     /* order matters: the salt is written after the clear, otherwise the
        memset wipes it and every file carries an all-zero salt */
@@ -324,10 +329,17 @@ int dna_decrypt_file_ex(const char* in_path, const char* out_path,
         free(file);
         return -2;
     }
-    if (helix_generation_key(mnemonic, keychain_path, info.generation,
-                             gen_key) != 0) {
-        free(file);
-        return -3;
+    {
+        int gk = helix_generation_key(mnemonic, keychain_path,
+                                      info.generation, gen_key);
+        if (gk == -1) {
+            free(file);
+            return -7;
+        }
+        if (gk != 0) {
+            free(file);
+            return -3;
+        }
     }
     if (is_v3) {
         uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];

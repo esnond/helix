@@ -172,6 +172,13 @@ int main(void)
     check(dna_encrypt_file(in, v3, MNEMONIC, NULL, 3) == -6,
           "encrypt refuses existing output (v2)");
 
+    /* a misspelled word is a distinct error (-7), not -3 */
+    check(dna_encrypt_file_ex(in, pairk, "abandon abandon WRONG abandon "
+                              "abandon abandon abandon abandon abandon "
+                              "abandon abandon about", NULL, 3, pair,
+                              "pair pass phrase") == -7,
+          "invalid mnemonic is -7");
+
     /* a fresh argon2id pair decrypts a file encrypted to it */
     check(hkpair_create(pair2, "argon pass", HKP_KDF_ARGON2ID) == 0,
           "create argon2id pair");

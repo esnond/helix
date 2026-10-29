@@ -223,8 +223,11 @@ static int cmd_encrypt(int argc, char* argv[])
                 in, out, gen, pair ? ", external pair" : "");
         return 0;
     case -3:
-        fprintf(stderr, "helix: generation %u unavailable\n", gen);
+        fprintf(stderr, "helix: engine/keychain failure (connectome?)\n");
         return 4;
+    case -7:
+        fprintf(stderr, "helix: invalid mnemonic\n");
+        return 2;
     case -4:
         fprintf(stderr, "helix: pair passphrase rejected\n");
         return 5;
