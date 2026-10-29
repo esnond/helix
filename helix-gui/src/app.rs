@@ -15,12 +15,14 @@ use crate::panel_jobs;
 use crate::prefs::Prefs;
 use crate::sound::{Event, SoundHandle};
 use crate::theme;
-use crate::wrapper::KeyList;
+use crate::wrapper::{self, KeyList};
 
 pub struct App {
     pub prefs: Prefs,
     pub phrase: Option<String>,
     pub keys: Option<KeyList>,
+    pub pair_path: String,
+    pub pair_status: Option<String>,
     pub cwd: PathBuf,
     pub files: Vec<FileEntry>,
     pub list: ListState,
@@ -35,6 +37,20 @@ pub struct App {
     hum_state: bool,
 }
 
+/// the pair option for encrypt/decrypt jobs, remembered across dialogs
+fn pair_of(d: &Dialog, pair_path: &mut String) -> Result<Option<(String, String)>, String> {
+    if !d.use_pair {
+        return Ok(None);
+    }
+    let path = d.pair_path.trim().to_string();
+    if path.is_empty() || d.pair_pass.is_empty() {
+        return Err(i18n::s().pair_needs_path.to_string());
+    }
+    *pair_path = path.clone();
+    Ok(Some((path, d.pair_pass.clone())))
+}
+
+#[allow(dead_code)]
 fn now_s() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -55,6 +71,8 @@ impl App {
             prefs,
             phrase: None,
             keys: None,
+            pair_path: String::new(),
+            pair_status: None,
             files: Vec::new(),
             list: ListState::Empty,
             selected: 0,
@@ -103,7 +121,8 @@ impl App {
     }
 
     fn open_dialog(&mut self, kind: Kind) {
-        self.dialog = Some(Dialog::new(kind, self.phrase.clone()));
+        self.dialog =
+            Some(Dialog::new(kind, self.phrase.clone(), self.pair_path.clone()));
     }
 
     fn activate(&mut self, i: usize) {
@@ -171,11 +190,19 @@ impl App {
                     self.dialog = Some(d);
                     return;
                 }
+                let pair = match pair_of(&d, &mut self.pair_path) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        d.error = Some(e);
+                        self.dialog = Some(d);
+                        return;
+                    }
+                };
                 let gen = d.target_gen;
                 let inp = inp.clone();
                 let out = format!("{inp}.dna");
                 self.phrase = Some(m.clone());
-                self.start_job(Op::Encrypt { inp, out, m, gen });
+                self.start_job(Op::Encrypt { inp, out, m, gen, pair });
             }
             Kind::Decrypt(inp) => {
                 if words < 12 {
@@ -183,13 +210,53 @@ impl App {
                     self.dialog = Some(d);
                     return;
                 }
+                let pair = match pair_of(&d, &mut self.pair_path) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        d.error = Some(e);
+                        self.dialog = Some(d);
+                        return;
+                    }
+                };
                 let inp = inp.clone();
                 let out = match inp.strip_suffix(".dna") {
                     Some(s) => s.to_string(),
                     None => format!("{inp}.dec"),
                 };
                 self.phrase = Some(m.clone());
-                self.start_job(Op::Decrypt { inp, out, m });
+                self.start_job(Op::Decrypt { inp, out, m, pair });
+            }
+            Kind::PairCreate(export) => {
+                let path = d.pair_path.trim().to_string();
+                let pass = d.pair_pass.clone();
+                if path.is_empty() || pass.is_empty() {
+                    d.error = Some(i18n::s().pair_needs_path.to_string());
+                    self.dialog = Some(d);
+                    return;
+                }
+                let res = if *export {
+                    let out = format!("{path}.pub");
+                    wrapper::pair_export(&path, &pass, &out)
+                        .map(|()| i18n::s().pair_exported.to_string())
+                } else {
+                    wrapper::pair_create(&path, &pass, d.pair_argon2)
+                        .map(|()| {
+                            self.pair_path = path.clone();
+                            i18n::s().pair_created.to_string()
+                        })
+                };
+                match res {
+                    Ok(msg) => {
+                        self.pair_status = Some(msg.clone());
+                        self.journal = msg;
+                        self.nacre_at = Some(now);
+                    }
+                    Err(e) => {
+                        d.error = Some(e);
+                        self.dialog = Some(d);
+                        return;
+                    }
+                }
             }
         }
     }
@@ -211,6 +278,15 @@ impl App {
                 if let Some(m) = self.phrase.clone() {
                     self.start_job(Op::List { m });
                 }
+            }
+            panel_keys::Action::PairCreate => self.open_dialog(Kind::PairCreate(false)),
+            panel_keys::Action::PairExport => {
+                if self.pair_path.trim().is_empty() {
+                    self.pair_status =
+                        Some(i18n::s().pair_needs_path.to_string());
+                    return;
+                }
+                self.open_dialog(Kind::PairCreate(true));
             }
             panel_keys::Action::TogglePolarity => {
                 self.prefs.light = !self.prefs.light;
@@ -338,6 +414,8 @@ impl eframe::App for App {
                     &self.keys,
                     self.phrase.is_some(),
                     self.prefs.sound,
+                    &mut self.pair_path,
+                    &mut self.pair_status,
                 );
             });
 

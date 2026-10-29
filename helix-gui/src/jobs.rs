@@ -7,8 +7,9 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub enum Op {
-    Encrypt { inp: String, out: String, m: String, gen: u32 },
-    Decrypt { inp: String, out: String, m: String },
+    /// pair: Some((pair file, pair passphrase)) switches to .dna v3
+    Encrypt { inp: String, out: String, m: String, gen: u32, pair: Option<(String, String)> },
+    Decrypt { inp: String, out: String, m: String, pair: Option<(String, String)> },
     Evolve { m: String },
     List { m: String },
 }
@@ -182,13 +183,19 @@ fn run_op(
 ) -> Result<JobOutput, String> {
     use crate::wrapper;
     match op {
-        Op::Encrypt { inp, out, m, gen } => {
-            let r = wrapper::encrypt(inp, out, m, None, *gen);
+        Op::Encrypt { inp, out, m, gen, pair } => {
+            let r = wrapper::encrypt_ex(
+                inp, out, m, None, *gen,
+                pair.as_ref().map(|(p, s)| (p.as_str(), s.as_str())),
+            );
             check_cancel(cancel)?;
             r.map(|_| JobOutput { message: format!("{inp} → {out}"), keys: None })
         }
-        Op::Decrypt { inp, out, m } => {
-            let r = wrapper::decrypt(inp, out, m, None);
+        Op::Decrypt { inp, out, m, pair } => {
+            let r = wrapper::decrypt_ex(
+                inp, out, m, None,
+                pair.as_ref().map(|(p, s)| (p.as_str(), s.as_str())),
+            );
             check_cancel(cancel)?;
             r.map(|_| JobOutput { message: format!("{inp} → {out}"), keys: None })
         }

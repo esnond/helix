@@ -7,16 +7,14 @@ use crate::i18n;
 use crate::theme;
 use crate::wrapper::KeyList;
 
-pub struct KeyState {
-    pub list: Option<KeyList>,
-}
-
 pub enum Action {
     None,
     Seed,
     Evolve,
     Reveal,
     Reload,
+    PairCreate,
+    PairExport,
     TogglePolarity,
     ToggleLang,
     ToggleSound,
@@ -96,6 +94,7 @@ fn dendrite(ui: &mut egui::Ui, list: &KeyList) {
 
 pub fn show(
     ui: &mut egui::Ui, keys: &Option<KeyList>, has_phrase: bool, sound_on: bool,
+    pair_path: &mut String, pair_status: &mut Option<String>,
 ) -> Action {
     let t = theme::theme();
     let s = i18n::s();
@@ -148,6 +147,28 @@ pub fn show(
         }
     });
 
+    ui.add_space(10.0);
+    ui.separator();
+    /* external kyber pair for v3 two-factor archives */
+    ui.label(theme::micro_head(s.pair));
+    ui.add_space(4.0);
+    ui.add(
+        egui::TextEdit::singleline(pair_path)
+            .hint_text(s.pair_path)
+            .font(crate::fonts::font_id(12.0, true))
+            .desired_width(ui.available_width()),
+    );
+    if let Some(st) = pair_status {
+        ui.label(RichText::new(st.clone()).small().color(t.ink2));
+    }
+    ui.horizontal(|ui| {
+        if theme::btn(ui, s.pair_create, false).clicked() {
+            action = Action::PairCreate;
+        }
+        if theme::btn(ui, s.pair_export, false).clicked() {
+            action = Action::PairExport;
+        }
+    });
     ui.add_space(10.0);
     ui.separator();
     /* settings: three toggles, still four groups on screen */

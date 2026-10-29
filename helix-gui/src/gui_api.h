@@ -25,6 +25,17 @@ int helix_gui_encrypt(const char* in, const char* out,
                       unsigned generation);
 int helix_gui_decrypt(const char* in, const char* out,
                       const char* mnemonic, const char* keychain_path);
+int helix_gui_encrypt_ex(const char* in, const char* out,
+                         const char* mnemonic, const char* keychain_path,
+                         unsigned generation, const char* pair_path,
+                         const char* pair_pass);
+int helix_gui_decrypt_ex(const char* in, const char* out,
+                         const char* mnemonic, const char* keychain_path,
+                         const char* pair_path, const char* pair_pass);
+int helix_gui_pair_create(const char* path, const char* pass,
+                          int argon2id);
+int helix_gui_pair_export(const char* path, const char* pass,
+                          const char* out_path);
 int helix_gui_evolve(const char* mnemonic, const char* keychain_path,
                      unsigned* gen_out, unsigned char key[32]);
 int helix_gui_current_generation(const char* mnemonic,

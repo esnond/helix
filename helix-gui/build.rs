@@ -33,7 +33,7 @@ fn main() {
     let helix_src = [
         "hex", "sha256", "sha512", "hmac", "pbkdf2", "bip39", "entropy",
         "secure_mem", "kdf", "keychain", "evolve", "keycheck", "chacha20", "poly1305",
-        "aead", "dna", "kyber_wrap", "kyber_drbg",
+        "aead", "dna", "kyber_wrap", "kyber_drbg", "blake2b", "argon2", "hkpair",
     ];
     for u in helix_src {
         build.file(format!("../src/{u}.c"));

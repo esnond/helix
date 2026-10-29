@@ -12,6 +12,7 @@ pub struct KeyList {
 }
 
 extern "C" {
+    #[allow(dead_code)]
     fn helix_gui_gen_seed(
         words: c_uint, out_mnemonic: *mut c_char, out_size: usize,
         out_entropy: *mut u8, entropy_len: usize,
@@ -21,13 +22,31 @@ extern "C" {
         out_keys: *mut u8, max: c_uint, count: *mut c_uint,
         current_gen: *mut c_uint,
     ) -> c_int;
+    #[allow(dead_code)]
     fn helix_gui_encrypt(
         inp: *const c_char, out: *const c_char, mnemonic: *const c_char,
         keychain_path: *const c_char, generation: c_uint,
     ) -> c_int;
+    #[allow(dead_code)]
     fn helix_gui_decrypt(
         inp: *const c_char, out: *const c_char, mnemonic: *const c_char,
         keychain_path: *const c_char,
+    ) -> c_int;
+    fn helix_gui_encrypt_ex(
+        inp: *const c_char, out: *const c_char, mnemonic: *const c_char,
+        keychain_path: *const c_char, generation: c_uint,
+        pair_path: *const c_char, pair_pass: *const c_char,
+    ) -> c_int;
+    fn helix_gui_decrypt_ex(
+        inp: *const c_char, out: *const c_char, mnemonic: *const c_char,
+        keychain_path: *const c_char, pair_path: *const c_char,
+        pair_pass: *const c_char,
+    ) -> c_int;
+    fn helix_gui_pair_create(
+        path: *const c_char, pass: *const c_char, argon2id: c_int,
+    ) -> c_int;
+    fn helix_gui_pair_export(
+        path: *const c_char, pass: *const c_char, out_path: *const c_char,
     ) -> c_int;
     fn helix_gui_evolve(
         mnemonic: *const c_char, keychain_path: *const c_char,
@@ -38,15 +57,17 @@ extern "C" {
 fn err(rc: c_int) -> &'static str {
     match rc {
         -1 => "io error",
-        -2 => "not a valid .dna file",
+        -2 => "not a valid .dna file or pair file",
         -3 => "generation unavailable",
-        -4 => "keychain error",
-        -5 => "authentication failed (wrong mnemonic or corrupt file)",
+        -4 => "authentication failed (wrong phrase or corrupt file)",
+        -5 => "out of memory",
+        -6 => "output file already exists",
         _ => "unknown error",
     }
 }
 
 /// generates a fresh bip39 mnemonic from the os entropy pool
+#[allow(dead_code)]
 pub fn gen_seed(words: u32) -> Result<String, String> {
     let mut mbuf = vec![0u8; 256];
     let mut entropy = [0u8; 32];
@@ -96,7 +117,8 @@ pub fn list_generations(
     Ok(KeyList { keys, current_gen: cur })
 }
 
-/// encrypts one file into the .dna format
+/// encrypts one file into the .dna format (v2; tests)
+#[allow(dead_code)]
 pub fn encrypt(
     inp: &str, out: &str, mnemonic: &str, keychain_path: Option<&str>,
     generation: u32,
@@ -126,7 +148,8 @@ pub fn encrypt(
     }
 }
 
-/// decrypts a .dna archive; the keychain is an optional cache
+/// decrypts a .dna archive (v2; tests)
+#[allow(dead_code)]
 pub fn decrypt(
     inp: &str, out: &str, mnemonic: &str, keychain_path: Option<&str>,
 ) -> Result<(), String> {
@@ -147,6 +170,112 @@ pub fn decrypt(
             k.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
         )
     };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(err(rc).into())
+    }
+}
+
+/// encrypts one file; a pair file switches to the v3 two-factor format
+pub fn encrypt_ex(
+    inp: &str, out: &str, mnemonic: &str, keychain_path: Option<&str>,
+    generation: u32, pair: Option<(&str, &str)>,
+) -> Result<(), String> {
+    let (i, o, m) = (
+        CString::new(inp).unwrap(),
+        CString::new(out).unwrap(),
+        CString::new(mnemonic).map_err(|_| "bad mnemonic".to_string())?,
+    );
+    let k = keychain_path
+        .map(CString::new)
+        .transpose()
+        .map_err(|_| "bad path".to_string())?;
+    let (p, pp) = match pair {
+        Some((path, pass)) => (
+            Some(CString::new(path).map_err(|_| "bad path".to_string())?),
+            Some(CString::new(pass).map_err(|_| "bad path".to_string())?),
+        ),
+        None => (None, None),
+    };
+    let rc = unsafe {
+        helix_gui_encrypt_ex(
+            i.as_ptr(),
+            o.as_ptr(),
+            m.as_ptr(),
+            k.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+            generation,
+            p.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+            pp.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(err(rc).into())
+    }
+}
+
+/// decrypts a .dna archive; v3 files need the external pair file
+pub fn decrypt_ex(
+    inp: &str, out: &str, mnemonic: &str, keychain_path: Option<&str>,
+    pair: Option<(&str, &str)>,
+) -> Result<(), String> {
+    let (i, o, m) = (
+        CString::new(inp).unwrap(),
+        CString::new(out).unwrap(),
+        CString::new(mnemonic).map_err(|_| "bad mnemonic".to_string())?,
+    );
+    let k = keychain_path
+        .map(CString::new)
+        .transpose()
+        .map_err(|_| "bad path".to_string())?;
+    let (p, pp) = match pair {
+        Some((path, pass)) => (
+            Some(CString::new(path).map_err(|_| "bad path".to_string())?),
+            Some(CString::new(pass).map_err(|_| "bad path".to_string())?),
+        ),
+        None => (None, None),
+    };
+    let rc = unsafe {
+        helix_gui_decrypt_ex(
+            i.as_ptr(),
+            o.as_ptr(),
+            m.as_ptr(),
+            k.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+            p.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+            pp.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(err(rc).into())
+    }
+}
+
+/// creates an external kyber keypair file (.hkpair)
+pub fn pair_create(path: &str, pass: &str, argon2id: bool) -> Result<(), String> {
+    let (p, pp) = (
+        CString::new(path).map_err(|_| "bad path".to_string())?,
+        CString::new(pass).map_err(|_| "bad passphrase".to_string())?,
+    );
+    let rc = unsafe { helix_gui_pair_create(p.as_ptr(), pp.as_ptr(), argon2id as i32) };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(err(rc).into())
+    }
+}
+
+/// writes the raw public key of a pair file
+pub fn pair_export(path: &str, pass: &str, out: &str) -> Result<(), String> {
+    let (p, pp, o) = (
+        CString::new(path).map_err(|_| "bad path".to_string())?,
+        CString::new(pass).map_err(|_| "bad passphrase".to_string())?,
+        CString::new(out).map_err(|_| "bad path".to_string())?,
+    );
+    let rc = unsafe { helix_gui_pair_export(p.as_ptr(), pp.as_ptr(), o.as_ptr()) };
     if rc == 0 {
         Ok(())
     } else {

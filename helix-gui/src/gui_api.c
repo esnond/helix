@@ -8,6 +8,7 @@
 #include "dna.h"
 #include "kdf.h"
 #include "keychain.h"
+#include "hkpair.h"
 
 int helix_gui_gen_seed(unsigned words, char* out_mnemonic,
                        size_t out_size, unsigned char* out_entropy,
@@ -82,6 +83,36 @@ int helix_gui_decrypt(const char* in, const char* out,
                       const char* mnemonic, const char* keychain_path)
 {
     return dna_decrypt_file(in, out, mnemonic, keychain_path);
+}
+
+int helix_gui_encrypt_ex(const char* in, const char* out,
+                         const char* mnemonic, const char* keychain_path,
+                         unsigned generation, const char* pair_path,
+                         const char* pair_pass)
+{
+    return dna_encrypt_file_ex(in, out, mnemonic, keychain_path,
+                               generation, pair_path, pair_pass);
+}
+
+int helix_gui_decrypt_ex(const char* in, const char* out,
+                         const char* mnemonic, const char* keychain_path,
+                         const char* pair_path, const char* pair_pass)
+{
+    return dna_decrypt_file_ex(in, out, mnemonic, keychain_path,
+                               pair_path, pair_pass);
+}
+
+int helix_gui_pair_create(const char* path, const char* pass,
+                          int argon2id)
+{
+    return hkpair_create(path, pass,
+                         argon2id ? HKP_KDF_ARGON2ID : HKP_KDF_PBKDF2);
+}
+
+int helix_gui_pair_export(const char* path, const char* pass,
+                          const char* out_path)
+{
+    return hkpair_export_pk(path, pass, out_path);
 }
 
 int helix_gui_evolve(const char* mnemonic, const char* keychain_path,

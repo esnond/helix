@@ -65,6 +65,19 @@ pub struct Strings {
     pub no_phrase: &'static str,
     pub help_1: &'static str,
     pub help_2: &'static str,
+    pub pair: &'static str,
+    pub pair_path: &'static str,
+    pub pair_pass: &'static str,
+    pub pair_create: &'static str,
+    pub pair_export: &'static str,
+    pub pair_kdf: &'static str,
+    pub kdf_argon2id: &'static str,
+    pub kdf_pbkdf2: &'static str,
+    pub d_v2_phrase: &'static str,
+    pub d_v3_pair: &'static str,
+    pub pair_created: &'static str,
+    pub pair_exported: &'static str,
+    pub pair_needs_path: &'static str,
 }
 
 pub const RU: Strings = Strings {
@@ -123,7 +136,20 @@ pub const RU: Strings = Strings {
     chain_not_loaded: "цепочка не загружена",
     no_phrase: "фраза не введена — нажмите «ввести фразу»",
     help_1: "j/k — выбор, e — шифровать, enter — открыть, h — вверх, delete — удалить, ctrl+q — выход",
-    help_2: "шифрование привязано к поколению ключа и фразе; .dna расшифровывается фразой где угодно",
+    help_2: "шифрование v2 привязано к фразе; v3 добавляет внешний файл пары — без него фраза не расшифрует",
+    pair: "внешняя пара",
+    pair_path: "путь к .hkpair",
+    pair_pass: "фраза пары:",
+    pair_create: "создать пару…",
+    pair_export: "экспорт pk",
+    pair_kdf: "kdf:",
+    kdf_argon2id: "argon2id",
+    kdf_pbkdf2: "pbkdf2",
+    d_v2_phrase: "v2: фраза",
+    d_v3_pair: "v3: файл пары",
+    pair_created: "пара создана",
+    pair_exported: "публичный ключ записан",
+    pair_needs_path: "укажите путь к файлу пары",
 };
 
 pub const EN: Strings = Strings {
@@ -182,7 +208,20 @@ pub const EN: Strings = Strings {
     chain_not_loaded: "chain not loaded",
     no_phrase: "no phrase yet — press «enter phrase»",
     help_1: "j/k select, e encrypt, enter open, h up, delete remove, ctrl+q quit",
-    help_2: "encryption binds to the key generation and the phrase; a .dna decrypts anywhere from the phrase alone",
+    help_2: "v2 encryption binds to the phrase; v3 adds an external pair file — the phrase alone cannot decrypt it",
+    pair: "external pair",
+    pair_path: "path to .hkpair",
+    pair_pass: "pair passphrase:",
+    pair_create: "create pair…",
+    pair_export: "export pk",
+    pair_kdf: "kdf:",
+    kdf_argon2id: "argon2id",
+    kdf_pbkdf2: "pbkdf2",
+    d_v2_phrase: "v2: phrase",
+    d_v3_pair: "v3: pair file",
+    pair_created: "pair created",
+    pair_exported: "public key written",
+    pair_needs_path: "set the pair file path first",
 };
 
 static LANG: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
@@ -233,6 +272,9 @@ mod tests {
             s.d_decrypt, s.d_delete, s.d_seed, s.d_mnemonic,
             s.d_mnemonic_hint, s.d_generation, s.d_delete_warn,
             s.d_short_phrase, s.d_open_file, s.no_seed, s.chain_not_loaded,
+            s.pair, s.pair_path, s.pair_pass, s.pair_create, s.pair_export,
+            s.pair_kdf, s.kdf_argon2id, s.kdf_pbkdf2, s.d_v2_phrase,
+            s.d_v3_pair, s.pair_created, s.pair_exported, s.pair_needs_path,
             s.no_phrase, s.help_1, s.help_2,
         ]
     }
