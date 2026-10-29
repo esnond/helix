@@ -102,6 +102,18 @@ int helix_gui_decrypt_ex(const char* in, const char* out,
                                pair_path, pair_pass);
 }
 
+/* validates the mnemonic without deriving: 0 ok, -1 bad word or
+   checksum. lets the dialogs reject a typo before a 3 s job starts. */
+int helix_gui_check_mnemonic(const char* mnemonic)
+{
+    uint8_t entropy[64];
+    size_t out_len;
+    return bip39_mnemonic_to_entropy(mnemonic, entropy, sizeof entropy,
+                                     &out_len) == 0
+               ? 0
+               : -1;
+}
+
 int helix_gui_pair_create(const char* path, const char* pass,
                           int argon2id)
 {

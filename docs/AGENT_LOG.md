@@ -212,3 +212,29 @@ claims 8 and 9 carry falsification criteria. README no longer promises
 "quantum resistant" anything. release notes point the owner at the
 acceptance checklist; the v1.0 tag is deliberately not created until
 that checklist passes.
+
+## A12 — gui bug pass on the owner report «unknown error» (inline)
+
+chain of causes, deepest first:
+1. P1 wrapper: the -7 code (added when the mnemonic/engine failures
+   were split) never got a match arm — every bad phrase printed
+   «unknown error». fixed; err map now covers -1..-7 exhaustively and
+   the sweep asserts the -7 text end to end.
+2. P2 stale process: the owner relaunched a pre-fix binary twice
+   (text file busy, old /usr/local/bin copy). the status bar now
+   shows the build version so a stale process is visible at a glance.
+3. P1 test-only: the c engine keeps derived state in statics and is
+   NOT thread safe; two parallel cargo tests corrupted each other's
+   derivation (auth failures). the gui is safe (one job at a time via
+   the queue); tests now serialize the engine through a mutex. named
+   in limitations 9 explicitly: concurrent engine phases in one
+   process are unsupported.
+4. P3 hygiene: tests used $HOME default keychain and leaked /tmp
+   files; both isolated to private paths now (the sweep had appended
+   two generations to the owner's abandon-test-vector keychain —
+   harmless, pinned test mnemonic).
+
+methodologist: new gui_flow_tests covers every gui action through the
+ffi (gen-seed, phrase validation, evolve, list, v2/v3 roundtrips,
+wrong phrase, wrong pair, overwrite refusal, pair export) — one
+assert per user-visible behavior, all traceable to a dialog. 8/8.

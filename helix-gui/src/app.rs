@@ -159,6 +159,19 @@ impl App {
         let Some(mut d) = self.dialog.take() else { return };
         let m = d.mnemonic.trim().to_string();
         let words = m.split_whitespace().count();
+        /* a typo must fail here, in the dialog, not as an async job
+           error three seconds later */
+        if matches!(
+            d.kind,
+            Kind::Seed | Kind::Encrypt(_) | Kind::Decrypt(_)
+        ) && words >= 12
+        {
+            if let Err(e) = wrapper::phrase_valid(&m) {
+                d.error = Some(e);
+                self.dialog = Some(d);
+                return;
+            }
+        }
         match &d.kind {
             Kind::Delete(path) => {
                 match std::fs::remove_file(path) {

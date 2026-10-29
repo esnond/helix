@@ -27,6 +27,17 @@ pub fn show(
             );
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            /* the running build is visible at a glance: a stale process
+               cannot masquerade as the installed one */
+            ui.label(
+                RichText::new(concat!(
+                    "v",
+                    env!("CARGO_PKG_VERSION"),
+                    "-"
+                ))
+                .font(crate::fonts::font_id(12.0, true))
+                .color(t.ink2),
+            );
             ui.label(
                 RichText::new(format!("helix-gui {}", env!("CARGO_PKG_VERSION")))
                     .small()

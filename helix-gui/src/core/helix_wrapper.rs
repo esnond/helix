@@ -42,6 +42,7 @@ extern "C" {
         keychain_path: *const c_char, pair_path: *const c_char,
         pair_pass: *const c_char,
     ) -> c_int;
+    fn helix_gui_check_mnemonic(mnemonic: *const c_char) -> c_int;
     fn helix_gui_pair_create(
         path: *const c_char, pass: *const c_char, argon2id: c_int,
     ) -> c_int;
@@ -58,7 +59,10 @@ fn err(rc: c_int) -> &'static str {
     match rc {
         -1 => "io error",
         -2 => "not a valid .dna file or pair file",
-        -3 => "generation unavailable: bad phrase, or the connectome table is missing (relaunch the installed binary)",
+        -3 => "engine failure: connectome table missing (relaunch the \
+installed binary) or the keychain is unusable",
+        -7 => "invalid phrase: a word is misspelled or the checksum \
+does not match",
         -4 => "authentication failed (wrong phrase or corrupt file)",
         -5 => "out of memory",
         -6 => "output file already exists",
@@ -254,6 +258,17 @@ pub fn decrypt_ex(
     }
 }
 
+/// bip39 wordlist+checksum validation, no derivation cost
+pub fn phrase_valid(mnemonic: &str) -> Result<(), String> {
+    let m = CString::new(mnemonic).map_err(|_| "bad mnemonic".to_string())?;
+    let rc = unsafe { helix_gui_check_mnemonic(m.as_ptr()) };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(err(rc).into())
+    }
+}
+
 /// creates an external kyber keypair file (.hkpair)
 pub fn pair_create(path: &str, pass: &str, argon2id: bool) -> Result<(), String> {
     let (p, pp) = (
@@ -329,22 +344,30 @@ mod tests {
 
     #[test]
     fn dna_roundtrip_headless() {
+        let _g = engine_guard::ENGINE.lock().unwrap();
         // cargo test runs from helix-gui/, the engine wants the
         // vendored connectome one level up
         std::env::set_var(
             "HELIX_CONNECTOME",
             "../vendor/petri/data/herm_302.csv",
         );
+        let kch = format!(
+            "/tmp/hx_rt_{:?}/kch.db",
+            std::process::id()
+        );
         let dir = std::env::temp_dir();
         let inp = dir.join("helix_gui_test.in");
         let dna = dir.join("helix_gui_test.dna");
         let out = dir.join("helix_gui_test.out");
+        for f in [&inp, &dna, &out] {
+            let _ = std::fs::remove_file(f);
+        }
         std::fs::write(&inp, b"gui roundtrip payload").unwrap();
         encrypt(
             inp.to_str().unwrap(),
             dna.to_str().unwrap(),
             MNEMONIC,
-            None,
+            Some(&kch),
             3,
         )
         .unwrap();
@@ -352,7 +375,7 @@ mod tests {
             dna.to_str().unwrap(),
             out.to_str().unwrap(),
             MNEMONIC,
-            None,
+            Some(&kch),
         )
         .unwrap();
         assert_eq!(
@@ -364,11 +387,148 @@ mod tests {
             dna.to_str().unwrap(),
             out.to_str().unwrap(),
             &gen_seed(12).unwrap(),
-            None
+            Some(&kch)
         )
         .is_err());
         let _ = std::fs::remove_file(inp);
         let _ = std::fs::remove_file(dna);
         let _ = std::fs::remove_file(out);
+    }
+}
+
+#[cfg(test)]
+mod engine_guard {
+    /* the c engine keeps derived state in statics and is not thread
+       safe (limitations 9); the gui serializes jobs through the queue,
+       tests serialize through this lock. */
+    pub static ENGINE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+}
+
+#[cfg(test)]
+mod gui_flow_tests {
+    /* headless functional sweep: every gui action exercised through the
+       same wrapper calls the ui makes.HELIX_CONNECTOME is pinned to the
+       build tree so the tests run from any cwd. */
+    use super::*;
+
+    const MNEMONIC: &str = "abandon abandon abandon abandon abandon \
+        abandon abandon abandon abandon abandon abandon about";
+    const CONNECTOME: &str =
+        "/home/esnond/helix/vendor/petri/data/herm_302.csv";
+
+    fn setup(tag: &str) {
+        std::env::set_var("HELIX_CONNECTOME", CONNECTOME);
+        let _ = std::fs::create_dir_all(format!("/tmp/hx_{tag}"));
+    }
+
+    fn p(tag: &str, name: &str) -> String {
+        format!("/tmp/hx_{tag}/{name}")
+    }
+
+    fn rm(path: &str) {
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn put(path: &str, what: &[u8]) {
+        std::fs::write(path, what).unwrap();
+    }
+
+    fn same(a: &str, b: &str) -> bool {
+        std::fs::read(a).unwrap() == std::fs::read(b).unwrap()
+    }
+
+    #[test]
+    fn full_flow() {
+        let _g = engine_guard::ENGINE.lock().unwrap();
+        setup("flow");
+        let phrase = p("flow", "in.bin");
+        let v2 = p("flow", "in.bin.dna");
+        let v2out = p("flow", "in.bin.out");
+        let pair = p("flow", "pair.hkpair");
+        let kch = p("flow", "kch.db");
+        let pubk = p("flow", "pair.pub");
+        let v3 = p("flow", "v3.dna");
+        let v3out = p("flow", "v3.out");
+        for f in [&phrase, &v2, &v2out, &pair, &pubk, &v3, &v3out, &kch] {
+            rm(f);
+        }
+        put(&phrase, b"gui functional sweep payload");
+
+        /* gen-seed: word count for both lengths */
+        assert_eq!(gen_seed(12).unwrap().split_whitespace().count(), 12);
+        assert_eq!(gen_seed(24).unwrap().split_whitespace().count(), 24);
+
+        /* phrase validation: good passes, a typo is caught before any
+           job would start */
+        assert!(phrase_valid(MNEMONIC).is_ok());
+        assert!(phrase_valid("abandon abandon WRONG abandon abandon             abandon abandon abandon abandon abandon abandon about")
+        .is_err());
+
+        /* evolve: chain advances, generations increase; the keychain
+           is a private test file — tests must never touch $HOME */
+        let (g1, _k1) = evolve(MNEMONIC, Some(&kch)).unwrap();
+        let (g2, _k2) = evolve(MNEMONIC, Some(&kch)).unwrap();
+        assert_eq!(g2, g1 + 1);
+
+        /* list: the keychain caches everything up to current */
+        let list = list_generations(MNEMONIC, Some(&kch)).unwrap();
+        assert!(list.keys.len() >= g2 as usize);
+
+        /* encrypt v2 (phrase only), decrypt, bitwise equal */
+        encrypt_ex(&phrase, &v2, MNEMONIC, None, 0, None).unwrap();
+        decrypt_ex(&v2, &v2out, MNEMONIC, None, None).unwrap();
+        assert!(same(&phrase, &v2out));
+
+        /* wrong phrase: authentication failure, not a crash */
+        assert!(decrypt_ex(&v2, &v2out, &gen_seed(12).unwrap(), None, None)
+            .unwrap_err()
+            .contains("authentication"));
+
+        /* bad phrase at encrypt: -7 surfaces as the -7 text; fresh
+           target because the overwrite refusal fires first by design */
+        let bad = p("flow", "bad.dna");
+        rm(&bad);
+        let e = encrypt_ex(
+            &phrase,
+            &bad,
+            "abandon abandon WRONG abandon abandon abandon abandon \
+             abandon abandon abandon abandon about",
+            None,
+            0,
+            None,
+        )
+        .unwrap_err();
+        assert!(e.contains("invalid phrase"), "{e}");
+
+        /* overwrite refusal before any state change */
+        assert!(encrypt_ex(&phrase, &v2, MNEMONIC, None, 0, None)
+            .unwrap_err()
+            .contains("already exists"));
+
+        /* pair: create, export, v3 two-factor roundtrip */
+        pair_create(&pair, "sweep pass", true).unwrap();
+        pair_export(&pair, "sweep pass", &pubk).unwrap();
+        assert!(std::path::Path::new(&pubk).exists());
+        encrypt_ex(&phrase, &v3, MNEMONIC, None, 0,
+                   Some((&pair, "sweep pass"))).unwrap();
+        decrypt_ex(&v3, &v3out, MNEMONIC, None,
+                   Some((&pair, "sweep pass"))).unwrap();
+        assert!(same(&phrase, &v3out));
+
+        /* v3 without the pair: two-factor refusal */
+        assert!(decrypt_ex(&v3, &v3out, MNEMONIC, None, None)
+            .unwrap_err()
+            .contains("authentication"));
+        /* v3 with a wrong pair passphrase */
+        assert!(decrypt_ex(&v3, &v3out, MNEMONIC, None,
+                           Some((&pair, "wrong")))
+            .unwrap_err()
+            .contains("authentication"));
+
+        for f in [&phrase, &v2, &v2out, &pair, &pubk, &v3, &v3out, &bad, &kch]
+        {
+            rm(f);
+        }
+        let _ = std::fs::remove_dir("/tmp/hx_flow");
     }
 }

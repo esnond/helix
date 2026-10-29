@@ -4,6 +4,8 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../src");
+    println!("cargo:rerun-if-changed=src/gui_api.c");
+    println!("cargo:rerun-if-changed=src/gui_api.h");
     println!("cargo:rerun-if-changed=../vendor/petri");
     println!("cargo:rerun-if-changed=../vendor/kyber");
     println!("cargo:rerun-if-changed=../src/vendored_math");

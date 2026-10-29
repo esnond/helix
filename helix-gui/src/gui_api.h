@@ -32,6 +32,7 @@ int helix_gui_encrypt_ex(const char* in, const char* out,
 int helix_gui_decrypt_ex(const char* in, const char* out,
                          const char* mnemonic, const char* keychain_path,
                          const char* pair_path, const char* pair_pass);
+int helix_gui_check_mnemonic(const char* mnemonic);
 int helix_gui_pair_create(const char* path, const char* pass,
                           int argon2id);
 int helix_gui_pair_export(const char* path, const char* pass,
