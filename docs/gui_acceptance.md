@@ -36,7 +36,7 @@ Build: `cd helix-gui && cargo build --release`, run:
 | # | item | ok |
 |---|---|---|
 | 17 | a running job shows a moving hairline and a cancel button | |
-| 18 | cancel marks the row and the strip returns to idle | |
+| 18 | cancel marks the row and the strip returns to idle (the running c call still completes, up to ~3.4 s — the side effect is not interruptible) | |
 | 19 | success draws the 1 px brass sweep across the file panel | |
 | 20 | failure shows `!` with the core error text, no spinner anywhere | |
 

@@ -110,3 +110,26 @@ skeleton design is done inline and recorded here:
   degrades to a silent backend with a visible "audio unavailable" note.
 - dialog state machine: Idle -> Opened{Seed|Encrypt|Decrypt|Delete} ->
   Busy -> Closed, error and glitch ride along.
+
+<!-- A7 -->
+## A7 methodologist pass, inline (spawn blocked again, provider-side)
+
+Verdicts against head b320457:
+1. every-action-by-mouse: SUPPORTED — encrypt/decrypt/delete/up/refresh/
+   phrase/evolve/reveal/polarity/lang/sound all have buttons; j/k/e/h are
+   accelerators only.
+2. no-crypto-in-rust: SUPPORTED — `grep -rn unsafe helix-gui/src` hits only
+   core/helix_wrapper.rs; no rust file derives key material.
+3. sound-default-off: SUPPORTED — prefs::default sound=false; the toggle
+   writes the conf file.
+4. cancel: PARTIAL — the cancel flag is checked after the c call returns
+   (jobs.rs run_op), so a cancelled encrypt/decrypt still writes its output
+   file; only the row label and the UI event are dropped. Recorded in the
+   acceptance checklist item 18. Real interruption needs a core-side
+   progress callback — deferred to the v3 stage (header write happens last,
+   so a cancelled decrypt leaves at most a complete plaintext copy the user
+   explicitly asked to cancel: named residual risk).
+5. checklist gaps: none found beyond item 18 wording, now fixed.
+
+required fixes: none blocking stage 1 exit; cancel semantics revisited in
+stage 4 when the job model gains the keypair path.
