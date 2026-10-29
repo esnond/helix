@@ -5,11 +5,11 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 4 done (r5 gui), phase 5 in progress (release v1.3)
-- next: final gate, manifest, tag v1.3, push by owner
+- phase: 5 done. v1.3 tagged 040f7b0.
+- next: owner pushes (see push checklist); r6 candidates listed in docs/roadmap_status.md
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
-- head at phase 0 close: (this commit)
+- head at v1.3: 040f7b0 (tag v1.3); tags r2-anchor, r3, r5
 
 ## Phase 0 exit criteria
 
