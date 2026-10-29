@@ -5,7 +5,7 @@ use std::ffi::{c_char, c_int, c_uint, CString};
 
 pub const KEY_LEN: usize = 32;
 
-#[repr(C)]
+#[derive(Clone)]
 pub struct KeyList {
     pub keys: Vec<[u8; KEY_LEN]>,
     pub current_gen: u32,

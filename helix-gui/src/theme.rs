@@ -1,8 +1,7 @@
-//! v5 palette: anti-glare, brass accent, two polarities.
-//!
-//! rules from docs/design/constitution.md: never #000 as background, never
-//! #fff as ink, strokes at least 1.4 px, and the polarity is a user toggle
-//! that must be persisted.
+//! theme: the two v5 polarities from docs/design/constitution.md.
+//! darkest background #131314, lightest ink #d6d3cd, hairline 1.4 px.
+//! polarity is one atomic so a settings toggle reaches every panel.
+
 use eframe::egui::Color32;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -52,8 +51,6 @@ pub const LIGHT: Theme = Theme {
     err: Color32::from_rgb(0x9c, 0x3f, 0x2e),
 };
 
-/* polarity lives in one atomic so a settings toggle reaches every panel
-   without threading a theme through every call site */
 static LIGHT_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_light(light: bool) {
@@ -72,7 +69,6 @@ pub fn theme() -> Theme {
     }
 }
 
-/* minimum stroke width, per the constitution */
 pub const HAIRLINE: f32 = 1.4;
 
 pub fn surface_hover() -> Color32 {
@@ -83,28 +79,26 @@ pub fn surface_hover() -> Color32 {
     }
 }
 
-pub fn surface_active() -> Color32 {
-    if is_light() {
-        theme().line2
+/// primary button: filled with the dark accent, ink on top
+pub fn btn(ui: &mut eframe::egui::Ui, label: &str, primary: bool) -> eframe::egui::Response {
+    let t = theme();
+    let (fill, text) = if primary {
+        (t.accent2, t.bg)
     } else {
-        Color32::from_rgba_unmultiplied(0x2a, 0x2a, 0x2f, 0xff)
-    }
+        (t.field, t.ink)
+    };
+    ui.add(
+        eframe::egui::Button::new(
+            eframe::egui::RichText::new(label).color(text).size(13.0),
+        )
+        .fill(fill)
+        .min_size(eframe::egui::vec2(96.0, 26.0)),
+    )
+    .on_hover_cursor(eframe::egui::CursorIcon::PointingHand)
 }
 
-/* the constitution bans scanlines-as-style; these stay transparent and
-   are kept only because the effect helpers still reference them */
-pub fn scanline_color() -> Color32 {
-    Color32::TRANSPARENT
-}
-
-pub fn noise_grain_color() -> Color32 {
-    Color32::TRANSPARENT
-}
-
-pub fn vignette() -> Color32 {
-    theme().bg
-}
-
-pub fn text_dim() -> Color32 {
-    theme().ink2
+pub fn micro_head(text: &str) -> eframe::egui::RichText {
+    eframe::egui::RichText::new(text.to_uppercase())
+        .font(crate::fonts::font_id(crate::fonts::SZ_DIM, false))
+        .color(theme().ink2)
 }
