@@ -63,8 +63,13 @@ Terminal=false
 Categories=Utility;Security;
 ```
 
-then `update-desktop-database ~/.local/share/applications`. with dwl and
-wmenu that is `Mod+P`, type `helix`. `--fullscreen` (or `-f`, or
+then `update-desktop-database ~/.local/share/applications`. note: the
+`wmenu-run` shipped with wmenu does not read `.desktop` files at all, it
+lists executables found on `PATH`. for that launcher put the binary on a
+directory that is already in `PATH`, e.g.
+`ln -sf ~/.local/bin/helix-gui ~/.cargo/bin/helix`. `.desktop` files are
+still the right thing for launchers that read them (fuzzel, rofi, wofi,
+gtk-launch). `--fullscreen` (or `-f`, or
 `HELIX_FULLSCREEN=1`) starts borderless fullscreen; the connectome table is
 resolved from the build tree, so the launcher's cwd no longer matters.
 
