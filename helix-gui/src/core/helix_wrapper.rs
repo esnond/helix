@@ -58,7 +58,7 @@ fn err(rc: c_int) -> &'static str {
     match rc {
         -1 => "io error",
         -2 => "not a valid .dna file or pair file",
-        -3 => "generation unavailable",
+        -3 => "generation unavailable: bad phrase, or the connectome table is missing (relaunch the installed binary)",
         -4 => "authentication failed (wrong phrase or corrupt file)",
         -5 => "out of memory",
         -6 => "output file already exists",

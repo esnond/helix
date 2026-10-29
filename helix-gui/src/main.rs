@@ -26,13 +26,27 @@ fn resolve_connectome() {
     /* the c core opens the table relative to the cwd. launched from the
        desktop the cwd is $HOME, so try the build tree and the
        compile-time location last */
-    let candidates = [
-        "vendor/petri/data/herm_302.csv",
-        "../vendor/petri/data/herm_302.csv",
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../vendor/petri/data/herm_302.csv"),
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    let mut candidates: Vec<String> = vec![
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../vendor/petri/data/herm_302.csv")
+            .to_string(),
     ];
-    for c in candidates {
+    if let Some(d) = exe_dir {
+        /* installed layout: ~/.local/bin binary, table next to it */
+        candidates.push(
+            d.join("vendor/petri/data/herm_302.csv").to_string_lossy().into_owned(),
+        );
+    }
+    for c in &candidates {
         if std::path::Path::new(c).exists() {
+            std::env::set_var("HELIX_CONNECTOME", c);
+            return;
+        }
+    }
+    for c in candidates {
+        if std::path::Path::new(c.as_str()).exists() {
             std::env::set_var("HELIX_CONNECTOME", c);
             return;
         }
