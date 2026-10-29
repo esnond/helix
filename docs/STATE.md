@@ -5,8 +5,8 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 3 done (helixd cancelled, HX-8)
-- next: phase 4 gui in v5 language
+- phase: 4 done (r5 gui), phase 5 in progress (release v1.3)
+- next: final gate, manifest, tag v1.3, push by owner
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
 - head at phase 0 close: (this commit)
@@ -40,8 +40,8 @@ Written 2026-10-29.
 | r3 | kyber-768 hybrid, .dna v2 kdf_type=1, kdf_type=0 decoded | 2 | done | tests/test_kyber 14 ok, docs/r3_spec.md | (r3 commit) |
 | a4.1 | v1 files carried an all-zero salt | 2 | done | fixed in dna.c, verified | (r3 commit) |
 | r4p | helixd cancelled, documented (HX-8) | 3 | done | docs/r4_decision.md | (r4p commit) |
-| r5 | GUI in v5 design language | 4 | pending | lain_skin base @ `de46886` | — |
-| rel | release v1.3 + paper docs | 5 | pending | — | — |
+| r5 | gui in v5 language: palette, layout, jobs, dendrite, i18n | 4 | done | docs/r5_spec.md, cargo test 2/2 | a0a3243 |
+| rel | v1.3 release notes, README, limitations, claims | 5 | done | docs/RELEASE_v1.3.md | (release commit) |
 
 ## Push checklist (user-held PAT)
 

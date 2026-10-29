@@ -11,11 +11,14 @@ cmp gate, pinned r0 value, five compiler configurations
 (results/cross_platform/platform_results.csv). the experiment that
 would disprove it: any suite run, anywhere, any time.
 
-scope restriction: within one build environment class (arch + flags +
-libm build). across libm versions and architectures this is an
-ASSUMPTION with a known risk (results/cross_platform/float_analysis.md).
-the experiment that would disprove the wider claim: build and run on
-a different architecture or libc - scheduled, not yet performed.
+scope restriction, narrowed in r3: the libm boundary is closed. the key
+path uses src/vendored_math (no expf/logf/sqrtf/sinf/cosf import;
+`make gate-libm`), and the key is identical at -O0/-O1/-O2/-O3
+(results/float_math/det_key_by_opt.txt). the connectome table is hashed
+in tests and in results/manifest.txt. still an ASSUMPTION: the same bits
+on another architecture or libc; musl replay is blocked by environment
+(scripts/cross_libc.sh). the experiment that would disprove the wider
+claim: build and run on arm64 or musl and compare the key.
 
 ## claim 2: evolution chain generations are pairwise distinct and deterministic
 
