@@ -106,35 +106,40 @@ mod active {
     }
 
     pub fn spawn() -> Option<mpsc::Sender<Msg>> {
-        use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-        let host = cpal::default_host();
-        let device = host.default_output_device()?;
-        let cfg = device.default_output_config().ok()?;
-        let sr = cfg.sample_rate().0;
-        let channels = cfg.channels() as usize;
+        /* the stream must be built and kept alive on one thread: the
+           alsa backend hands out a non-Send handle. the channel is
+           the loop source, so no extra keeper thread exists. */
         let (tx, rx) = mpsc::channel::<Msg>();
         let ring: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(Vec::new()));
         let ring2 = ring.clone();
-        let mut chain = Chain::new(sr);
-        let mut hum_phase = 0.0f32;
-        let mut hum_on = false;
+        std::thread::spawn(move || {
+            active_inner(rx, ring2);
+        });
+        Some(tx)
+    }
+
+    fn active_inner(
+    rx: mpsc::Receiver<Msg>,
+    ring: Arc<Mutex<Vec<f32>>>,
+) -> Option<()> {
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    let host = cpal::default_host();
+    let device = host.default_output_device()?;
+    let cfg = device.default_output_config().ok()?;
+    let sr = cfg.sample_rate().0;
+    let channels = cfg.channels() as usize;
+    let mut chain = Chain::new(sr);
+    let mut hum_phase = 0.0f32;
+    let mut hum_on = false;
+    let ring_cb = ring.clone();
 
         let stream = device
             .build_output_stream(
                 &cfg.into(),
                 move |out: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    loop {
-                        match rx.try_recv() {
-                            Ok(Msg::Shutdown) => break,
-                            Ok(Msg::Play(ev)) => {
-                                render_event(&ring2, sr, &ev, &mut hum_on)
-                            }
-                            Err(_) => break,
-                        }
-                    }
                     let want = out.len() / channels;
                     let mut block = {
-                        let mut r = ring2.lock().unwrap();
+                        let mut r = ring_cb.lock().unwrap();
                         let take = r.len().min(want);
                         r.drain(..take).collect::<Vec<f32>>()
                     };
@@ -155,16 +160,24 @@ mod active {
                 move |err| {
                     let _ = err;
                 },
+                /* no stream timeout: the callback never blocks */
+                None,
             )
             .ok()?;
         stream.play().ok()?;
-        std::thread::spawn(move || {
-            let _stream = stream;
-            loop {
-                std::thread::sleep(std::time::Duration::from_millis(500));
+        /* recv drives the loop: render queued events straight into
+           the ring; shutdown or a dropped sender ends the thread and
+           the stream with it */
+        loop {
+            match rx.recv() {
+                Ok(Msg::Shutdown) => break,
+                Ok(Msg::Play(ev)) => {
+                    render_event(&ring, sr, &ev, &mut hum_on)
+                }
+                Err(_) => break,
             }
-        });
-        Some(tx)
+        }
+        Some(())
     }
 }
 
