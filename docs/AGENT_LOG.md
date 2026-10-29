@@ -176,3 +176,27 @@ adversary:
   v3-in-v2 header rejected, hkpair_load bounded reads (-2 on short
   file), pair create refuses overwrite, iterations field aad-bound.
 No P0/P1. Stage 4 may exit.
+
+## A10 — stage 5 review pass (inline)
+
+methodologist: the kch2 claims in the commit message map to test
+evidence one to one (aead tamper -> "tampered body rejected" -4,
+fresh nonce per rewrite -> ctr in the header covered by the aad,
+flock -> "second handle refused" -6, migration history ->
+post-migration checks). no untestable claim added.
+
+adversary:
+- P3 the 44-byte header flip is the crash window: a torn header write
+  loses the chain. single-sector pwrite makes it unlikely but not
+  impossible; documented as a residual, no backup field (scope).
+- P3 decrypted entries live in memory for the handle's lifetime
+  (scrubbed at close) — same class as the known rust-side String
+  limitation; named.
+- P3 two processes on different paths can still race the same chain
+  if the user passes different links to one file (symlink). flock is
+  per-inode, so a symlinked alias is covered; bind mounts are not.
+- checked: nonce uniqueness across appends (ctr monotonic per file),
+  legacy kch1 with wrong key -> -3 not a crash, migrate idempotent
+  (legacy flag cleared), realloc preserves entries, close wipes mk
+  and pt.
+No P0/P1. Stage 5 may exit.
