@@ -3,9 +3,10 @@
 > **WARNING: research prototype, NOT production cryptography.**
 > do not use this for real secrets. the crypto is written from
 > scratch and has never been audited, the key derivation rests on a
-> float based simulation whose bitwise replay is proven only within
-> one build environment class, and the side channel surface is
-> analyzed but not eliminated. for production use established
+> float based simulation that now carries its own math (no libm) but is
+> still proven bitwise-identical only across compiler flags on one
+> architecture, and the side channel surface is analyzed for timing
+> only. for production use established
 > libraries: libsodium, age, openssl. this project exists to study a
 > question, not to protect anything.
 
@@ -21,15 +22,17 @@ c99, posix subset, no external libraries. the petri engine (c.
 elegans connectome simulator, v1.0.1) is vendored verbatim under
 vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
 
-status: r2. seed generation, deterministic key derivation (r0), key
-evolution (r1), the security hardening pass and the .dna encrypted
-archive format (r2, chacha20 poly1305 per rfc 8439) are done: encrypt
-and decrypt files from the mnemonic alone. timing analysis, side
-channel audit and a five configuration determinism matrix are in
-results/. post quantum crypto (r3) is next; the directory service
-(r4) and the gui (r5) wait on toolchains, see
-docs/roadmap_status.md. milestone docs: docs/r1_spec.md,
-docs/r1_security.md, docs/dna_format.md.
+status: r5, release v1.3. seed generation, deterministic key derivation
+(r0), key evolution (r1), the .dna archive format (r2), a kyber-768
+hybrid .dna v2 (r3) and a gui in the v5 design language (r5) are done.
+four prior criticisms are closed with evidence: the libm boundary is
+gone (docs/hypotheses.md h1.1), the chain has a written reduction
+(h1.2, docs/security_proof.md), 100k differential vectors and a
+constant-time harness back the crypto claims (h1.3, h1.4). the r4
+directory service and the helixd daemon are cancelled on the record
+(docs/r4_decision.md). milestone docs: docs/r1_spec.md,
+docs/r1_security.md, docs/dna_format.md, docs/r3_spec.md,
+docs/r5_spec.md, docs/security_proof.md.
 
 ## what this is
 

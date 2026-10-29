@@ -1,0 +1,636 @@
+﻿<!doctype html>
+<html lang="ru" data-theme="dark" data-calm="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>helix · v5 (physical sound engine)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.1.0/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.1.0/500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.1.0/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.1.0/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.1.0/500.css">
+<script>try{var __hp=JSON.parse(localStorage.getItem("helix-ui-v5")||"{}");
+if(__hp.theme)document.documentElement.dataset.theme=__hp.theme;
+if(__hp.calm)document.documentElement.dataset.calm=__hp.calm?"on":"off";
+if(__hp.lang)document.documentElement.lang=__hp.lang;}catch(e){}</script>
+<style>
+/* helix v5 · graphite/brass · physical sound engine
+   звук = физика: контакт + негармоническая пластина + корпус + линия.
+   общий convolver (металл. коробка), компрессор, lowpass, джиттер с сидом.
+   контрасты >= AA (см. v3/v4). */
+:root{--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1)}
+html[data-theme="dark"]{--bg:#131314;--bg2:#18181a;--field:#1d1d20;--ink:#d6d3cd;--ink2:#8d8a84;
+  --line:#26262a;--line2:#333338;--accent:#c8a24a;--accent2:#8a6f33;--ok:#7fa88f;--warn:#c29a5a;--err:#c26a5a;
+  --shadow:0 16px 40px rgba(0,0,0,.42)}
+html[data-theme="light"]{--bg:#f2efe9;--bg2:#eae6dd;--field:#e5dfd4;--ink:#22201d;--ink2:#64605a;
+  --line:#dbd5c8;--line2:#c9c2b2;--accent:#7a5c1e;--accent2:#a3803c;--ok:#3f6b52;--warn:#6f5518;--err:#9c3f2e;
+  --shadow:0 16px 40px rgba(60,50,30,.18)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:400 13px/1.5 var(--sans);color:var(--ink);background:var(--bg);
+  display:grid;grid-template-rows:auto 1fr auto auto;overflow:hidden;
+  transition:background .5s var(--ease),color .5s var(--ease)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:1px solid var(--accent);outline-offset:2px;border-radius:3px}
+svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.top{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-size:15px;font-weight:600}
+.brand span{font:400 11px var(--mono);color:var(--ink2)}
+.tg-group{display:flex}
+.tg{display:flex;align-items:center;gap:7px;padding:6px 12px;font-size:12px;color:var(--ink2);transition:color .18s}
+.tg + .tg{border-left:1px solid var(--line)}
+.tg:hover{color:var(--ink)}
+.tg[aria-pressed="true"]{color:var(--accent)}
+.stage{display:grid;grid-template-columns:1fr 340px;min-height:0}
+.col{display:flex;flex-direction:column;min-height:0;padding:18px 20px 14px}
+.col-files{border-right:1px solid var(--line)}
+.col-keys{padding-top:46px}
+.mh{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px;min-height:1.5em}
+.thead,.row{display:grid;grid-template-columns:20px 1fr 64px 52px 76px;gap:12px;align-items:center}
+.thead{padding:0 8px 6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);border-bottom:1px solid var(--line)}
+.thead span:nth-child(n+3){text-align:right}
+.rows{list-style:none;overflow:auto;min-height:0;flex:1}
+.rows:focus{outline:none}
+.rows[hidden]{display:none}
+.row{height:34px;padding:0 8px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.row:hover{background:var(--bg2)}
+.row.sel{background:var(--field);box-shadow:inset 2px 0 0 var(--accent)}
+.rows:focus-visible .row.sel{box-shadow:inset 2px 0 0 var(--accent),inset 0 0 0 1px var(--accent2)}
+.row .ic{color:var(--ink2)} .row.sel .ic{color:var(--accent)}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .c{font:400 11px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink2);text-align:right}
+.row.born{animation:born .32s var(--ease)}
+@keyframes born{from{opacity:0;transform:translateY(-5px)}}
+.row.okflash{animation:okf .8s var(--ease)}
+@keyframes okf{0%{background:color-mix(in srgb,var(--ok) 22%,transparent)}100%{background:transparent}}
+.notch{display:inline-block;width:5px;height:5px;margin-left:6px;vertical-align:1px;
+  border-left:1px solid var(--accent2);border-bottom:1px solid var(--accent2);transform:rotate(-45deg)}
+.empty,.errstate{flex:1;display:grid;place-content:center;justify-items:center;gap:10px;color:var(--ink2);text-align:center;padding:40px 20px}
+.empty .ic,.errstate .ic{width:28px;height:28px;stroke-width:1.2;opacity:.6}
+.errstate .cause{font:400 11px var(--mono);color:var(--err)}
+.menu{margin-top:10px;border-top:1px solid var(--line);padding-top:6px}
+.mrow{display:flex;align-items:center;justify-content:space-between;width:100%;height:30px;padding:0 8px;border-radius:4px;font-size:13px;transition:background .15s}
+.mrow:hover{background:var(--bg2)}
+.mrow .l{display:flex;align-items:center;gap:9px}
+.mrow .k{font:400 10px var(--mono);color:var(--ink2);border:1px solid var(--line);border-radius:3px;padding:0 5px;transition:color .15s,border-color .15s}
+.mrow:hover .k{color:var(--accent);border-color:var(--accent2)}
+.gen{font:500 40px/1 var(--mono);font-variant-numeric:tabular-nums;margin:2px 0 4px}
+.gen small{font:400 11px var(--sans);color:var(--ink2);margin-left:10px}
+#dendrite{width:100%;height:36px;margin:6px 0 4px}
+#dendrite line.conn{stroke:var(--line2);stroke-width:1}
+#dendrite line.mut{stroke:var(--accent2);stroke-width:1}
+#dendrite circle{fill:var(--bg);stroke:var(--ink2);stroke-width:1.2;transition:stroke .2s,fill .2s}
+#dendrite circle.cur{fill:var(--accent);stroke:var(--accent)}
+#dendrite circle.hl{stroke:var(--accent);stroke-width:1.8}
+.chain{list-style:none;overflow:auto;min-height:0;flex:1;margin-top:6px}
+.chain li{display:flex;justify-content:space-between;height:24px;align-items:center;font:400 11px var(--mono);color:var(--ink2);border-bottom:1px solid var(--line)}
+.chain li:first-child{color:var(--ink)}
+.chain li.born{animation:born .32s var(--ease)}
+#jobs{border-top:1px solid var(--line);padding:4px 20px;display:flex;flex-direction:column;gap:2px}
+#jobs[hidden]{display:none}
+.job{display:grid;grid-template-columns:1fr 160px 190px auto;gap:12px;align-items:center;height:26px;font-size:12px;color:var(--ink2)}
+.job .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job .nm b{color:var(--ink);font-weight:500}
+.job .bar{position:relative;height:1px;background:var(--line)}
+.job .bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);width:0%}
+.job.done .bar i{background:var(--ok)} .job.err .bar i{background:var(--err)}
+.job .rs{font:400 10px var(--mono);color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job .x{color:var(--ink2);padding:2px 7px;border-radius:3px}
+.job .x:hover{color:var(--err);background:var(--bg2)}
+.status{display:flex;justify-content:space-between;gap:24px;padding:6px 20px;border-top:1px solid var(--line);font:400 11px var(--mono);color:var(--ink2)}
+.cur{display:inline-block;width:6px;height:11px;background:var(--ok);vertical-align:-1px;margin-left:3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.st{display:flex;align-items:center;gap:8px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink2);transition:background .35s}
+body[data-state="work"] .dot{background:var(--accent)}
+body[data-state="ok"] .dot{background:var(--ok)}
+body[data-state="err"] .dot,body[data-state="warn"] .dot{background:var(--err)}
+.dot.bloom{animation:bloom .8s var(--ease)}
+@keyframes bloom{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
+.col.nacre{position:relative}
+.col.nacre::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--ok),transparent);background-size:220% 100%;
+  animation:nacre .65s var(--ease) forwards}
+@keyframes nacre{from{background-position:130% 0;opacity:1}to{background-position:-130% 0;opacity:0}}
+.ovl{position:fixed;inset:0;z-index:6;display:grid;place-items:start center;background:color-mix(in srgb,var(--bg) 72%,transparent)}
+.ovl[hidden]{display:none}
+.sheet{background:var(--bg);border:1px solid var(--line2);border-radius:8px;box-shadow:var(--shadow)}
+.intent{margin-top:10vh;width:min(520px,92vw);overflow:hidden}
+.intent input{width:100%;font:400 13px var(--sans);color:var(--ink);background:transparent;border:0;outline:none;padding:13px 16px}
+.intent ul{list-style:none;border-top:1px solid var(--line);max-height:248px;overflow:auto}
+.intent li{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:7px 16px;font-size:13px;color:var(--ink2);cursor:pointer}
+.intent li.on{background:var(--bg2);color:var(--ink)}
+.intent li .k{font:400 10px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 5px}
+.dialog{place-items:center}
+.card{width:min(400px,92vw);padding:20px}
+.card h3{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:14px;min-height:1.5em}
+.card input{width:100%;font:400 12px var(--mono);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:9px 10px;outline:none}
+.card input:focus{border-color:var(--accent2)}
+.card .hint{font-size:11px;color:var(--ink2);margin-top:8px}
+.help{place-items:center}
+.helpbox{width:min(640px,92vw);max-height:82vh;overflow:auto;padding:24px}
+.helpbox h3{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin:18px 0 6px}
+.helpbox h3:first-child{margin-top:0}
+.helpbox p,.helpbox li{font-size:12px;color:var(--ink2);margin:3px 0}
+.helpbox ul{list-style:none}
+.helpbox b{color:var(--ink);font-weight:500}
+.helpbox .k{font:400 10px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--ink)}
+.sprev{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.sprev .mrow{width:auto;border:1px solid var(--line)}
+html[data-calm="on"] *{transition-duration:0s!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important;animation:none!important}}
+</style>
+</head>
+<body data-state="idle">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.7-1.4"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 21v-8.2"/><path d="M12 12.8C12 9.4 9.6 7.8 6.2 7.8c0 3.4 2.4 5 5.8 5Z"/><path d="M12 10.6c0-3.4 2.4-5 5.8-5 0 3.4-2.4 5-5.8 5Z"/></symbol>
+  <symbol id="i-dna" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9.5 7c2.6 1.8 2.6 3.2 0 5s-2.6 3.2 0 5"/><path d="M14.5 7c-2.6 1.8-2.6 3.2 0 5s2.6 3.2 0 5"/><path d="M10 9.5h4"/><path d="M10 14.5h4"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 14.5V4"/><path d="M8.6 7.4 12 4l3.4 3.4"/><path d="M5.5 13.5v5h13v-5"/></symbol>
+  <symbol id="i-snd" viewBox="0 0 24 24"><path d="M4.5 10v4h2.8l3.7 3V7l-3.7 3H4.5Z"/><path d="M14.5 9.5a3.6 3.6 0 0 1 0 5"/></symbol>
+  <symbol id="i-calm" viewBox="0 0 24 24"><path d="M19.5 14.2A7.8 7.8 0 1 1 9.8 4.5a6.6 6.6 0 0 0 9.7 9.7Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M18 6l-1.4 1.4M7.4 16.6 6 18"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M9.8 9.6a2.3 2.3 0 1 1 3.2 2.5c-.8.4-1 .9-1 1.7"/><path d="M12 17.2h.01"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.5 21 19.5H3Z"/><path d="M12 10v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M3.6 12h16.8"/><path d="M12 3.6c2.4 2.3 3.6 5.1 3.6 8.4s-1.2 6.1-3.6 8.4c-2.4-2.3-3.6-5.1-3.6-8.4s1.2-6.1 3.6-8.4Z"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><b>helix</b><span class="mono">0.1.0 · v5 physical</span></div>
+  <div class="tg-group">
+    <button class="tg" id="t-snd" aria-pressed="false"><svg class="ic"><use href="#i-snd"/></svg><span data-i="snd"></span></button>
+    <button class="tg" id="t-calm" aria-pressed="false"><svg class="ic"><use href="#i-calm"/></svg><span data-i="calm"></span></button>
+    <button class="tg" id="t-pol" aria-pressed="false"><svg class="ic"><use href="#i-sun"/></svg><span data-i="pol"></span></button>
+    <button class="tg" id="t-lang" aria-label="language"><svg class="ic"><use href="#i-globe"/></svg><span id="lang-lbl">EN</span></button>
+    <button class="tg" id="t-help"><svg class="ic"><use href="#i-help"/></svg><span data-i="help"></span></button>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="col col-files" id="col-files" aria-label="Файлы">
+    <h2 class="mh" id="mh-files" data-text="Файлы">Файлы</h2>
+    <div class="thead" id="thead"></div>
+    <div id="liststate" hidden></div>
+    <ul class="rows" id="rows" role="listbox" aria-label=".dna" tabindex="0"></ul>
+    <div class="menu">
+      <button class="mrow" id="btn-enc"><span class="l"><svg class="ic"><use href="#i-lock"/></svg><span data-i="enc"></span></span><span class="k">E</span></button>
+      <button class="mrow" id="btn-dec"><span class="l"><svg class="ic"><use href="#i-unlock"/></svg><span data-i="dec"></span></span><span class="k">D</span></button>
+    </div>
+  </section>
+  <aside class="col col-keys" id="col-keys" aria-label="Ключи">
+    <h2 class="mh" id="mh-keys" data-text="Ключи">Ключи</h2>
+    <div class="gen mono" id="gen">5<small data-i="curgen"></small></div>
+    <svg id="dendrite" role="img" aria-label="chain dendrite"></svg>
+    <ul class="chain" id="chain"></ul>
+    <div class="menu">
+      <button class="mrow" id="btn-evo"><span class="l"><svg class="ic"><use href="#i-sprout"/></svg><span data-i="newkey"></span></span><span class="k">G</span></button>
+      <button class="mrow" id="btn-exp"><span class="l"><svg class="ic"><use href="#i-export"/></svg><span data-i="seed"></span></span><span class="k">X</span></button>
+    </div>
+  </aside>
+</main>
+
+<div id="jobs" hidden aria-live="polite"></div>
+
+<footer class="status">
+  <span>/home/esnond/helix<span class="cur"></span></span>
+  <span id="journal" aria-live="polite"></span>
+  <span class="st"><i class="dot" id="dot"></i><span id="st-name"></span> · <span data-i="genw"></span> <span id="st-gen">5</span></span>
+</footer>
+
+<div class="ovl" id="intent" hidden role="dialog" aria-modal="true">
+  <div class="sheet intent">
+    <input id="intent-in" autocomplete="off">
+    <ul id="intent-list"></ul>
+  </div>
+</div>
+
+<div class="ovl dialog" id="dialog" hidden role="dialog" aria-modal="true" aria-labelledby="d-head">
+  <div class="sheet card" id="card">
+    <h3 id="d-head"></h3>
+    <input id="d-mnem" autocomplete="off">
+    <p class="hint" data-i="hint"></p>
+    <div class="menu">
+      <button class="mrow" id="d-ok"><span class="l" data-i="queue"></span><span class="k">⏎</span></button>
+      <button class="mrow" id="d-cancel"><span class="l" data-i="cancel"></span><span class="k">esc</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl help" id="help" hidden role="dialog" aria-modal="true">
+  <div class="sheet helpbox" id="help-ru">
+    <h3>Ввод</h3>
+    <ul><li><span class="k">J</span>/<span class="k">K</span> выбор · <span class="k">E</span> зашифровать · <span class="k">D</span> расшифровать · <span class="k">G</span> новый ключ · <span class="k">X</span> сид</li>
+    <li><span class="k">Ctrl K</span> команды · <span class="k">?</span> справка · <span class="k">Esc</span> закрыть. Мышь даёт те же действия и то же пространство.</li></ul>
+    <h3>Физический звук</h3>
+    <ul><li>затвор = контакт (тик через highpass) + негармоническая пластина (моды 1:2.76:5.4:8.9) + удар корпуса с задержкой 6 мс + вторичный контакт на +42 мс</li>
+    <li>линия = калибровка свипом полосового шума + пакетные ack; прогресс = резонансные burst'ы, ползущие по частоте; гул катушки 50/53.9 Гц, пока очередь жива</li>
+    <li>сбой = реле: AM-buzz 100 Гц на низком saw + глухой двойной контакт</li>
+    <li>все звуки идут через один convolver (металлическая коробка) и шину с компрессором: у семьи одно тело</li>
+    <li>джиттер с сидом (id задачи + bucket): машина та же, события чуть другие</li></ul>
+    <div class="sprev">
+      <button class="mrow" data-sprev="select"><span class="l">контакт</span></button>
+      <button class="mrow" data-sprev="hand"><span class="l">калибровка</span></button>
+      <button class="mrow" data-sprev="packet"><span class="l">пакет</span></button>
+      <button class="mrow" data-sprev="seal"><span class="l">затвор</span></button>
+      <button class="mrow" data-sprev="unseal"><span class="l">раз затвор</span></button>
+      <button class="mrow" data-sprev="err"><span class="l">реле</span></button>
+    </div>
+    <p>Команда <b>Сонификация</b> (Ctrl+K): звук ведёт огибающая активности симуляции — полоса шума дышит вместе с работой, пакеты на её пиках. По умолчанию выключена.</p>
+    <h3>Очередь и состояния</h3>
+    <p>Модалка спрашивает только сид-фразу; работа идёт фоном с прогрессом, причиной и отменой. Пустой каталог и сбой чтения имеют свои состояния с причиной и следующим шагом.</p>
+    <h3>Дендрит и насечка</h3>
+    <p>Узел = поколение, насечки = мутации, текущее залито латунью. Наведение на файл подсвечивает его поколение. Насечка у строки = файл на старом поколении: расшифровка честно пересчитает цепочку.</p>
+    <h3>Контракт данных</h3>
+    <p>Фронтенд говорит только с транспортом: <b>{v,status,gen,chain[{g,fp,mut}],files[{name,size,gen,mtime,broken}]}</b> — форма будущего <b>helix gui --json</b>.</p>
+    <h3>Демо</h3>
+    <p><span class="k">Ctrl K</span>: «пустой каталог», «сбой чтения», «восстановить». Расшифровка <b>corrupted.dna</b> показывает аварийное завершение с причиной.</p>
+  </div>
+  <div class="sheet helpbox" id="help-en" hidden>
+    <h3>Input</h3>
+    <ul><li><span class="k">J</span>/<span class="k">K</span> select · <span class="k">E</span> encrypt · <span class="k">D</span> decrypt · <span class="k">G</span> new key · <span class="k">X</span> seed</li>
+    <li><span class="k">Ctrl K</span> commands · <span class="k">?</span> help · <span class="k">Esc</span> close. Mouse yields the same actions and the same space.</li></ul>
+    <h3>Physical sound</h3>
+    <ul><li>latch = contact tick (highpass) + inharmonic plate (modes 1:2.76:5.4:8.9) + body thump delayed 6 ms + secondary contact at +42 ms</li>
+    <li>line = bandpass-noise sweep calibration + packet acks; progress = resonant bursts crawling in frequency; coil hum 50/53.9 Hz while the queue lives</li>
+    <li>fault = relay: 100 Hz AM buzz on a low saw + dull double contact</li>
+    <li>everything routes through one convolver (metal box) and a compressed bus: the family shares a single body</li>
+    <li>seeded jitter (job id + bucket): same machine, slightly different events</li></ul>
+    <div class="sprev">
+      <button class="mrow" data-sprev="select"><span class="l">contact</span></button>
+      <button class="mrow" data-sprev="hand"><span class="l">calibration</span></button>
+      <button class="mrow" data-sprev="packet"><span class="l">packet</span></button>
+      <button class="mrow" data-sprev="seal"><span class="l">latch</span></button>
+      <button class="mrow" data-sprev="unseal"><span class="l">unlatch</span></button>
+      <button class="mrow" data-sprev="err"><span class="l">relay</span></button>
+    </div>
+    <p>Command <b>Sonify</b> (Ctrl+K): the sound is driven by the simulation's activity envelope — a noise band breathes with the work, packets on its peaks. Off by default.</p>
+    <h3>Queue and states</h3>
+    <p>The modal asks only for the seed phrase; work runs in background with progress, reason and cancel. Empty directory and read failure have their own states with cause and next step.</p>
+    <h3>Dendrite and notch</h3>
+    <p>Node = generation, notches = mutations, current one filled brass. Hovering a file highlights its generation. A row notch = file sealed at an older generation: decrypt will honestly re-derive the chain.</p>
+    <h3>Data contract</h3>
+    <p>The frontend talks only to the transport: <b>{v,status,gen,chain[{g,fp,mut}],files[{name,size,gen,mtime,broken}]}</b> — the shape of future <b>helix gui --json</b>.</p>
+    <h3>Demo</h3>
+    <p><span class="k">Ctrl K</span>: "empty directory", "read failure", "restore". Decrypting <b>corrupted.dna</b> shows a failed completion with cause.</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const calm=()=>document.documentElement.dataset.calm==="on";
+let lang=document.documentElement.lang==="en"?"en":"ru";
+const T={
+ ru:{snd:"Звук",calm:"Тихий режим",pol:"Светлая тема",help:"Справка",files:"Файлы",keys:"Ключи",
+  th:["","имя","размер","пок.","изменён"],enc:"Зашифровать",dec:"Расшифровать",newkey:"Новый ключ",seed:"Показать сид",
+  curgen:"текущее поколение",genw:"пок.",states:{idle:"готов",work:"занят",wait:"ожидание",err:"сбой",warn:"сбой",ok:"готово"},
+  jReady:"готов к работе",emptyT:"В каталоге нет .dna",emptyA:"Зашифровать первый файл",
+  errT:"Не удалось прочитать каталог",errA:"Повторить чтение",
+  dEnc:"Зашифровать → .dna",dDec:"Расшифровать .dna",mnem:"Сид-фраза… (демо: «abra» → сбой MAC)",
+  hint:"Модалка спрашивает только фразу. Сама работа уйдёт в очередь внизу экрана.",queue:"В очередь",cancel:"Отмена",
+  modes:{encrypt:"шифрование",decrypt:"расшифровка",export:"сид"},
+  reasons:{encrypt:["читаю контейнер…","pbkdf2, 600 000 итераций…","разворачиваю коннектом…","складываю траекторию в sha256…","печатаю poly1305…"],
+   decrypt:["читаю заголовок .dna…","восстанавливаю поколение…","пересчитываю цепочку…","проверяю MAC…"],
+   export:["собираю сид-фразу…","готовлю к копированию…"]},
+  done:"готово",cancelled:"отменено",genWord:"поколение",mut:"мут.",intentPh:"Команда… (Ctrl+K)",none:"ничего не найдено",
+  jEmpty:"каталог пуст",jReadFail:"сбой чтения каталога",jRestored:"каталог восстановлен",jNewKey:"новый ключ",
+  jMac:"сбой MAC",jNoSeed:"пустая сид-фраза",jCopied:"сид скопирован",
+  notch:(g,n)=>`зашифровано на поколении ${g}: расшифровка пересчитает цепочку (${n} выводов)`,
+  acts:{encrypt:"Зашифровать выбранное",decrypt:"Расшифровать выбранное",evolve:"Новый ключ (поколение +1)",export:"Показать сид-фразу",
+   snd:"Звук: включить/выключить",calm:"Тихий режим",pol:"Светлая тема",lang:"Язык: русский/english",sonify:"Сонификация: звук самой работы",help:"Справка",
+   demoEmpty:"Демо: пустой каталог",demoFault:"Демо: сбой чтения каталога",demoRestore:"Демо: восстановить каталог"}},
+ en:{snd:"Sound",calm:"Quiet mode",pol:"Light theme",help:"Help",files:"Files",keys:"Keys",
+  th:["","name","size","gen","modified"],enc:"Encrypt",dec:"Decrypt",newkey:"New key",seed:"Show seed",
+  curgen:"current generation",genw:"gen",states:{idle:"ready",work:"busy",wait:"waiting",err:"fault",warn:"fault",ok:"done"},
+  jReady:"ready",emptyT:"No .dna in this directory",emptyA:"Encrypt first file",
+  errT:"Cannot read directory",errA:"Retry reading",
+  dEnc:"Encrypt → .dna",dDec:"Decrypt .dna",mnem:"Seed phrase… (demo: “abra” → MAC fault)",
+  hint:"The modal asks only for the phrase. The work itself goes to the queue at the bottom.",queue:"Queue",cancel:"Cancel",
+  modes:{encrypt:"encrypt",decrypt:"decrypt",export:"seed"},
+  reasons:{encrypt:["reading container…","pbkdf2, 600 000 rounds…","unfolding connectome…","folding trajectory into sha256…","stamping poly1305…"],
+   decrypt:["reading .dna header…","restoring generation…","re-deriving chain…","verifying MAC…"],
+   export:["collecting seed phrase…","preparing copy…"]},
+  done:"done",cancelled:"cancelled",genWord:"generation",mut:"mut.",intentPh:"Command… (Ctrl+K)",none:"nothing found",
+  jEmpty:"directory empty",jReadFail:"directory read fault",jRestored:"directory restored",jNewKey:"new key",
+  jMac:"MAC fault",jNoSeed:"empty seed phrase",jCopied:"seed copied",
+  notch:(g,n)=>`sealed at generation ${g}: decrypt will re-derive the chain (${n} derivations)`,
+  acts:{encrypt:"Encrypt selected",decrypt:"Decrypt selected",evolve:"New key (generation +1)",export:"Show seed phrase",
+   snd:"Sound: on/off",calm:"Quiet mode",pol:"Light theme",lang:"Language: russian/english",sonify:"Sonify: sound of the work itself",help:"Help",
+   demoEmpty:"Demo: empty directory",demoFault:"Demo: read failure",demoRestore:"Demo: restore directory"}}};
+const t=()=>T[lang];
+const persist=()=>{try{localStorage.setItem("helix-ui-v5",JSON.stringify({
+  theme:document.documentElement.dataset.theme,calm:calm(),snd:sndOn,sonify,lang}))}catch(e){}};
+
+/* ---- транспорт ---- */
+const DEMO=[{name:"thesis_draft.dna",size:"4.7 MB",gen:5,mtime:"сегодня"},
+ {name:"field_notes.dna",size:"1.2 MB",gen:2,mtime:"вчера"},
+ {name:"keys_backup.dna",size:"88 KB",gen:0,mtime:"12 окт"},
+ {name:"swarm_runs.dna",size:"31 MB",gen:3,mtime:"09 окт"},
+ {name:"corrupted.dna",size:"1.1 MB",gen:4,mtime:"08 окт",broken:true}];
+const mutOf=g=>32+(g*7+3)%33, fpOf=g=>(((g+7)*2654435761)>>>0).toString(16).slice(0,8);
+const Transport={db:{gen:5,chain:[5,4,3,2,1,0].map(g=>({g,fp:fpOf(g),mut:mutOf(g)})),files:DEMO.map(f=>({...f}))},fault:null,
+  snapshot(){if(this.fault==="readdir")return{v:1,status:"error",cause:"EACCES: /home/esnond/helix"};
+    return{v:1,status:"ok",gen:this.db.gen,chain:this.db.chain,files:this.db.files};}};
+let view={status:"ok",gen:5,chain:[],files:[]}, sel=0, mode=null, lastFocus=null, jid=0;
+const jobs=[]; let stT=0;
+function setState(s){document.body.dataset.state=s;$("#st-name").textContent=t().states[s]||s;clearTimeout(stT);
+  if(s==="err")stT=setTimeout(()=>setState("warn"),420);
+  else if(s==="warn")stT=setTimeout(()=>setState("idle"),1100);
+  else if(s==="ok")stT=setTimeout(()=>setState("idle"),1600);}
+function journal(x){$("#journal").textContent=x;}
+function bloom(){const d=$("#dot");d.classList.remove("bloom");void d.offsetWidth;d.classList.add("bloom");}
+function nacre(c){c.classList.remove("nacre");void c.offsetWidth;c.classList.add("nacre");setTimeout(()=>c.classList.remove("nacre"),700);}
+
+/* ================= ФИЗИЧЕСКИЙ ЗВУКОВОЙ ДВИЖОК =================
+   шина -> [convolver wet] -> компрессор -> lowpass -> out
+   источники: контакт(шум HP), пластина(негарм. моды), корпус(sine),
+   линия(шум BP), реле(AM saw). джиттер с сидом. */
+let AC=null,sndOn=(window.__hp&&window.__hp.snd)||false,sonify=(window.__hp&&window.__hp.sonify)||false;
+let noiseB=null,bus,comp,lp,outG,conv,wetG,hum=null,son=null;
+const ac=()=>AC||(AC=new (window.AudioContext||window.webkitAudioContext)());
+function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;
+  let x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296;};}
+const dR=()=>rng((Math.random()*1e9)|0);
+const jit=(r,p)=>1+(r()*2-1)*p;
+function makeIR(){const c=ac(),sr=c.sampleRate,dur=.11,len=(sr*dur)|0,b=c.createBuffer(1,len,sr),ch=b.getChannelData(0);
+  for(let i=0;i<len;i++){const tt=i/sr;
+    let v=(Math.random()*2-1)*Math.pow(1-i/len,2.4)*.5;
+    if(i<sr*.0015)v+=(Math.random()*2-1)*.9*(1-i/(sr*.0015));          /* раннее отражение */
+    if(i>sr*.003&&i<sr*.005)v+=(Math.random()*2-1)*.4*(1-(i-sr*.003)/(sr*.002));
+    ch[i]=v;}
+  return b;}
+function graph(){if(bus)return;const c=ac();
+  bus=c.createGain();comp=c.createDynamicsCompressor();
+  comp.threshold.value=-18;comp.knee.value=12;comp.ratio.value=3;comp.attack.value=.003;comp.release.value=.12;
+  lp=c.createBiquadFilter();lp.type="lowpass";lp.frequency.value=14000;
+  outG=c.createGain();outG.gain.value=0;
+  conv=c.createConvolver();conv.buffer=makeIR();wetG=c.createGain();wetG.gain.value=.13;
+  bus.connect(comp);bus.connect(conv);conv.connect(wetG);wetG.connect(comp);
+  comp.connect(lp);lp.connect(outG);outG.connect(c.destination);}
+function rampOn(){const c=ac();outG.gain.cancelScheduledValues(c.currentTime);outG.gain.setTargetAtTime(1,c.currentTime,.05);}
+function rampOff(){if(!outG)return;const c=ac();outG.gain.setTargetAtTime(0,c.currentTime,.04);humStop();sonStop();}
+function nsrc(d){const c=ac();if(!noiseB){noiseB=c.createBuffer(1,c.sampleRate,c.sampleRate);
+  const ch=noiseB.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;}
+  const s=c.createBufferSource();s.buffer=noiseB;s.loop=true;s.start();s.stop(c.currentTime+d+.05);return s;}
+function burst(d,ft,f,q,g,r,force,sweepTo){if(!sndOn&&!force)return;graph();const c=ac();
+  const s=nsrc(d),bp=c.createBiquadFilter(),v=c.createGain();
+  bp.type=ft;bp.frequency.setValueAtTime(f*jit(r,.04),c.currentTime);
+  if(sweepTo)bp.frequency.exponentialRampToValueAtTime(sweepTo,c.currentTime+d);
+  bp.Q.value=q;v.gain.setValueAtTime(g,c.currentTime);v.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d);
+  s.connect(bp);bp.connect(v);v.connect(bus);}
+function osc(type,f,d,g,r,force,delay=0,slide){if(!sndOn&&!force)return;graph();const c=ac(),t0=c.currentTime+delay/1000;
+  const o=c.createOscillator(),v=c.createGain();o.type=type;o.frequency.setValueAtTime(f*jit(r,.015),t0);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,t0+d);
+  v.gain.setValueAtTime(0,t0);v.gain.linearRampToValueAtTime(g,t0+.002);
+  v.gain.exponentialRampToValueAtTime(.0001,t0+d);
+  o.connect(v);v.connect(bus);o.start(t0);o.stop(t0+d+.05);}
+const MODES=[[1,1],[2.76,.5],[5.4,.28],[8.9,.16]];
+function plate(f0,d,g,r,force,delay=0){MODES.forEach(([m,a],i)=>{
+  if(r()<.06)return;                                   /* иногда пропустить моду */
+  osc("sine",f0*m,d*[1,.62,.38,.22][i],g*a,r,force,delay);});}
+const tickC=(f,d,g,r,force,dl)=>burst(d,"highpass",f,.8,g,r,force);
+const thump=(f,dl,d,g,r,force)=>osc("sine",f,d,g,r,force,dl);
+const SND={
+  select:(r=dR(),f)=>{tickC(2600,.004,.014,r,f);plate(1500,.04,.006,r,f);},
+  hand:(r=dR(),f)=>{burst(.09,"bandpass",600,3,.02,r,f,1800);
+    setTimeout(()=>burst(.025,"bandpass",1200,7,.02,r,f),110);
+    setTimeout(()=>burst(.022,"bandpass",1650,7,.017,r,f),168);},
+  packet:(p,seed,f)=>{const r=rng(seed);burst(.02,"bandpass",(900+p*900)*jit(r,.05),6,f?.03:.022,r,f);
+    if((seed&3)===0)plate(1200,.05,.005,r,f);},
+  seal:(r=dR(),f)=>{tickC(3500,.004,.05,r,f);plate(520,.18,.05,r,f);thump(75,6,.09,.06,r,f);
+    setTimeout(()=>tickC(2200,.003,.02,r,f),42);},
+  unseal:(r=dR(),f)=>{tickC(1800,.004,.035,r,f);plate(380,.14,.04,r,f);thump(60,4,.08,.05,r,f);
+    setTimeout(()=>burst(.06,"bandpass",700,3,.03,r,f,380),20);},
+  stamp:(r=dR(),f)=>{tickC(3000,.003,.03,r,f);plate(640,.08,.03,r,f);},
+  evo:(r=dR(),f)=>{tickC(3000,.003,.03,r,f);plate(640,.08,.03,r,f);
+    setTimeout(()=>{tickC(3400,.003,.03,r,f);plate(760,.08,.03,r,f);},70);},
+  err:(r=dR(),f)=>{if(!sndOn&&!f)return;graph();const c=ac(),t0=c.currentTime;
+    const o=c.createOscillator(),g=c.createGain(),lfo=c.createOscillator(),lg=c.createGain();
+    o.type="sawtooth";o.frequency.value=95*jit(r,.05);lfo.type="sine";lfo.frequency.value=100;
+    g.gain.value=.02;lg.gain.value=.02;lfo.connect(lg);lg.connect(g.gain);
+    o.connect(g);g.connect(bus);o.start(t0);lfo.start(t0);o.stop(t0+.06);lfo.stop(t0+.06);
+    tickC(900,.004,.03,r,f);setTimeout(()=>tickC(760,.004,.025,r,f),55);thump(55,0,.1,.05,r,f);}};
+function humStart(){if(hum||!sndOn)return;graph();const c=ac();
+  const g=c.createGain();g.gain.value=0;g.gain.setTargetAtTime(.006,c.currentTime,.15);
+  const l=c.createBiquadFilter();l.type="lowpass";l.frequency.value=200;
+  const o1=c.createOscillator(),o2=c.createOscillator();o1.frequency.value=50;o2.frequency.value=53.9;
+  o1.connect(g);o2.connect(g);g.connect(l);l.connect(bus);o1.start();o2.start();hum={g,o1,o2};}
+function humStop(){if(!hum)return;const c=ac();hum.g.gain.setTargetAtTime(0,c.currentTime,.08);
+  const h=hum;hum=null;setTimeout(()=>{h.o1.stop();h.o2.stop();},300);}
+function sonStart(seed){if(son||!sndOn||!sonify)return;graph();const c=ac();
+  const s=nsrc(60),bp=c.createBiquadFilter(),g=c.createGain();
+  bp.type="bandpass";bp.Q.value=2.5;bp.frequency.value=900;g.gain.value=0;
+  s.connect(bp);bp.connect(g);g.connect(bus);son={s,bp,g,seed};}
+function sonUpdate(tt,seed){if(!son)return;const c=ac();
+  const a=Math.max(.05,Math.min(1,.5+.5*Math.sin(tt*2.3+seed)*Math.sin(tt*1.13+seed*1.7)));
+  son.bp.frequency.setTargetAtTime(500+1300*a,c.currentTime,.05);
+  son.g.gain.setTargetAtTime(.008+.014*a,c.currentTime,.06);return a;}
+function sonStop(){if(!son)return;const c=ac();son.g.gain.setTargetAtTime(0,c.currentTime,.08);
+  const s=son;son=null;setTimeout(()=>s.s.stop(),300);}
+
+/* ---- рендер ---- */
+function applyLang(){const L=t();document.documentElement.lang=lang;$("#lang-lbl").textContent=lang==="ru"?"EN":"RU";
+  document.querySelectorAll("[data-i]").forEach(el=>{const k=el.dataset.i;if(L[k])el.textContent=L[k];});
+  $("#mh-files").dataset.text=L.files;$("#mh-files").textContent=L.files;
+  $("#mh-keys").dataset.text=L.keys;$("#mh-keys").textContent=L.keys;
+  $("#thead").innerHTML=L.th.map(x=>`<span>${x}</span>`).join("");
+  $("#d-mnem").placeholder=L.mnem;$("#intent-in").placeholder=L.intentPh;
+  $("#help-ru").hidden=lang!=="ru";$("#help-en").hidden=lang!=="en";
+  $("#st-name").textContent=L.states[document.body.dataset.state]||"";
+  load();renderJobs();if(!$("#intent").hidden)renderIntent($("#intent-in").value);}
+function load(){const s=Transport.snapshot();view=s;const rows=$("#rows"),ls=$("#liststate"),th=$("#thead");
+  if(s.status==="error"){th.hidden=true;rows.hidden=true;ls.hidden=false;
+    ls.innerHTML=`<div class="errstate"><svg class="ic"><use href="#i-warn"/></svg><div>${t().errT}</div>
+      <div class="cause">${s.cause}</div>
+      <button class="mrow" id="retry" style="width:auto"><span class="l">${t().errA}</span><span class="k">R</span></button></div>`;
+    journal(t().jReadFail);setState("err");return;}
+  if(s.files.length===0){th.hidden=true;rows.hidden=true;ls.hidden=false;
+    ls.innerHTML=`<div class="empty"><svg class="ic"><use href="#i-dna"/></svg><div>${t().emptyT}</div>
+      <button class="mrow" id="mk" style="width:auto"><span class="l">${t().emptyA}</span><span class="k">E</span></button></div>`;
+    journal(t().jEmpty);return;}
+  ls.hidden=true;rows.hidden=false;th.hidden=false;
+  sel=Math.min(sel,s.files.length-1);
+  rows.innerHTML=s.files.map((f,i)=>{const n=f.gen<s.gen?`<span class="notch" title="${t().notch(f.gen,f.gen+1)}" aria-label="${t().notch(f.gen,f.gen+1)}"></span>`:"";
+    return `<li class="row${i===sel?" sel":""}" id="row-${i}" role="option" aria-selected="${i===sel}" data-i="${i}">
+      <svg class="ic"><use href="#i-dna"/></svg><span class="nm">${f.name}</span>
+      <span class="c">${f.size}</span><span class="c">${f.gen}${n}</span><span class="c">${f.mtime}</span></li>`;}).join("");
+  rows.setAttribute("aria-activedescendant","row-"+sel);
+  rows.querySelectorAll(".row").forEach(el=>{
+    el.addEventListener("click",()=>{sel=+el.dataset.i;renderSel();rows.focus({preventScroll:true});SND.select();});
+    el.addEventListener("mouseenter",()=>hlGen(view.files[+el.dataset.i].gen));
+    el.addEventListener("mouseleave",()=>hlGen(view.gen));});
+  renderChain();if(document.body.dataset.state==="idle")journal(t().jReady);}
+$("#liststate").addEventListener("click",e=>{
+  if(e.target.closest("#retry")){Transport.fault=null;load();}
+  if(e.target.closest("#mk"))A.encrypt();});
+function renderSel(){const rows=$("#rows");
+  rows.querySelectorAll(".row").forEach((el,i)=>{el.classList.toggle("sel",i===sel);el.setAttribute("aria-selected",i===sel);});
+  rows.setAttribute("aria-activedescendant","row-"+sel);}
+function renderChain(bornG){const L=t();
+  $("#chain").innerHTML=view.chain.map(c=>`<li class="${c.g===bornG?"born":""}"><span>${L.genWord} ${c.g}</span><span>${c.fp} · ~${c.mut} ${L.mut}</span></li>`).join("");
+  $("#gen").innerHTML=`${view.gen}<small data-i="curgen">${L.curgen}</small>`;$("#st-gen").textContent=view.gen;renderDendrite();}
+function renderDendrite(){const svg=$("#dendrite"),gs=[...view.chain].map(c=>c.g).sort((a,b)=>a-b);
+  const W=300,pad=14,step=(W-pad*2)/Math.max(1,gs.length-1);let out="";
+  gs.forEach((g,i)=>{const x=pad+i*step;
+    if(i>0){const px=pad+(i-1)*step;out+=`<line class="conn" x1="${px}" y1="20" x2="${x}" y2="20"/>`;
+      const m=view.chain.find(c=>c.g===g),n=Math.round(m.mut/16);
+      for(let k=1;k<=n;k++){const nx=px+step*k/(n+1);out+=`<line class="mut" x1="${nx}" y1="16" x2="${nx+3}" y2="24"/>`;}}
+    const cur=g===view.gen;out+=`<circle data-g="${g}" class="${cur?"cur":""}" cx="${x}" cy="20" r="${cur?4:3}"><title>${t().genWord} ${g}</title></circle>`;});
+  svg.innerHTML=out;}
+function hlGen(g){document.querySelectorAll("#dendrite circle").forEach(c=>c.classList.toggle("hl",+c.dataset.g===g));}
+
+/* ---- очередь ---- */
+function enqueue(m,name,dur){jobs.push({id:++jid,mode:m,name,t0:performance.now(),dur,p:0,state:"run",bucket:-1,lastA:0,lastPeak:0});
+  SND.hand();humStart();sonStart(jid*97);setState("work");renderJobs();}
+function renderJobs(){const box=$("#jobs");box.hidden=jobs.length===0;
+  box.innerHTML=jobs.map(j=>`<div class="job ${j.state}" data-j="${j.id}">
+    <span class="nm"><b>${t().modes[j.mode]}</b> ${j.name}</span>
+    <span class="bar"><i style="width:${(j.p*100).toFixed(1)}%"></i></span>
+    <span class="rs">${j.rs||""}</span>
+    ${j.state==="run"?`<button class="x" data-x="${j.id}" aria-label="cancel">✕</button>`:"<span></span>"}</div>`).join("");
+  box.querySelectorAll("[data-x]").forEach(b=>b.addEventListener("click",()=>cancelJob(+b.dataset.x)));}
+function cancelJob(id){const j=jobs.find(x=>x.id===id);if(!j||j.state!=="run")return;j.state="cancel";
+  journal(`${t().modes[j.mode]} ${j.name} · ${t().cancelled}`);setState("idle");
+  setTimeout(()=>{jobs.splice(jobs.indexOf(j),1);renderJobs();if(!jobs.some(x=>x.state==="run")){humStop();sonStop();}},400);renderJobs();}
+function tickJobs(now){let active=false;
+  jobs.forEach(j=>{if(j.state!=="run")return;active=true;
+    const tt=Math.min(1,(now-j.t0)/j.dur);j.p=Math.pow(tt,1.6);
+    const rs=t().reasons[j.mode];j.rs=rs[Math.min(rs.length-1,Math.floor(tt*rs.length))];
+    if(sonify){const a=sonUpdate((now-j.t0)/1000,j.id);
+      if(a&&a>j.lastA&&a>.72&&now-j.lastPeak>190){j.lastPeak=now;SND.packet(j.p,j.id*7919+Math.floor(tt*40));}
+      j.lastA=a||0;}
+    const b=Math.floor(j.p*12);
+    if(b!==j.bucket){j.bucket=b;if(!sonify)SND.packet(j.p,j.id*7919+b);}
+    if(tt>=1)finishJob(j);});
+  if(active){renderJobs();setState("work");}
+  else if(jobs.length===0){humStop();sonStop();}
+  requestAnimationFrame(tickJobs);}
+function finishJob(j){const secs=(j.dur/1000).toFixed(1)+"s",L=t();
+  if(j.mode==="decrypt"&&view.files.find(f=>f.name===j.name)?.broken){
+    j.state="err";j.rs=L.jMac;journal(`${L.modes.decrypt} ${j.name} · ${secs} · ${L.jMac}`);
+    setState("err");SND.err();setTimeout(()=>{jobs.splice(jobs.indexOf(j),1);renderJobs();},2600);renderJobs();return;}
+  if(j.mode==="encrypt"){const src=view.files[sel]||view.files[0];
+    if(src)Transport.db.files.unshift({name:src.name.replace(/\.dna$/,"")+".dna",size:src.size,gen:view.gen,mtime:"now"});}
+  j.state="done";j.p=1;j.rs=L.done;
+  journal(`${L.modes[j.mode]} ${j.name} · ${secs} · ok`);
+  setState("ok");bloom();nacre(j.mode==="export"?$("#col-keys"):$("#col-files"));
+  if(j.mode==="encrypt")SND.seal();else if(j.mode==="decrypt")SND.unseal();
+  else{SND.stamp();navigator.clipboard&&navigator.clipboard.writeText(DEMO_SEED).catch(()=>{});journal(`${L.jCopied} · 12 words`);}
+  load();setTimeout(()=>{jobs.splice(jobs.indexOf(j),1);renderJobs();if(!jobs.some(x=>x.state==="run")){humStop();sonStop();}},700);renderJobs();}
+
+/* ---- диалог ---- */
+const DEMO_SEED="abandon ability able about above absent absorb abstract absurd abuse access accident";
+function typeOn2(el,txt){if(calm()){el.textContent=txt;return;}el.textContent="";let i=0;
+  const st=Math.max(12,Math.round(140/txt.length));
+  const iv=setInterval(()=>{el.textContent=txt.slice(0,++i);if(i>=txt.length)clearInterval(iv);},st);}
+function openDialog(m,src){mode=m;lastFocus=document.activeElement;
+  const dlg=$("#dialog"),card=$("#card");$("#d-mnem").value="";dlg.hidden=false;SND.select();
+  typeOn2($("#d-head"),m==="encrypt"?t().dEnc:t().dDec);
+  const r=src.getBoundingClientRect(),c=card.getBoundingClientRect();
+  card.style.transformOrigin=`${r.left+r.width/2-c.left}px ${r.top+r.height/2-c.top}px`;
+  card.style.transition="none";card.style.transform="scale(.3)";card.style.opacity="0";
+  requestAnimationFrame(()=>{card.style.transition="transform .2s var(--ease),opacity .2s var(--ease)";
+    card.style.transform="scale(1)";card.style.opacity="1";});
+  setTimeout(()=>$("#d-mnem").focus(),60);}
+function closeDialog(){const dlg=$("#dialog"),card=$("#card");
+  card.style.transition="transform .15s var(--ease),opacity .15s var(--ease)";
+  card.style.transform="scale(.94)";card.style.opacity="0";
+  setTimeout(()=>{dlg.hidden=true;lastFocus&&lastFocus.focus&&lastFocus.focus();},160);}
+$("#card").addEventListener("keydown",e=>{if(e.key!=="Tab")return;
+  const f=[...$("#card").querySelectorAll("input,button")];const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&i===0){f[f.length-1].focus();e.preventDefault();}
+  else if(!e.shiftKey&&i===f.length-1){f[0].focus();e.preventDefault();}});
+function dialogOK(){const mn=$("#d-mnem").value.trim();
+  if(!mn){setState("err");SND.err();journal(t().jNoSeed);return;}
+  if(mode==="decrypt"&&/abra/i.test(mn)){setState("err");SND.err();journal(t().jMac);closeDialog();return;}
+  const f=view.files[sel];closeDialog();enqueue(mode,f?f.name:"file",mode==="encrypt"?2800:2400);}
+
+/* ---- действия ---- */
+const A={encrypt(src){if(view.status==="error")return;if(!view.files.length){journal(t().jEmpty);return;}openDialog("encrypt",src||$("#btn-enc"));},
+ decrypt(src){if(view.status==="error")return;if(!view.files.length){journal(t().jEmpty);return;}openDialog("decrypt",src||$("#btn-dec"));},
+ evolve(){Transport.db.gen++;const g=Transport.db.gen;Transport.db.chain.unshift({g,fp:fpOf(g),mut:mutOf(g)});
+   view.gen=g;view.chain=Transport.db.chain;renderChain(g);setState("ok");SND.evo();bloom();nacre($("#col-keys"));
+   journal(`${t().jNewKey} · ${t().genWord} ${g}`);},
+ export(){enqueue("export","seed",900);},
+ snd(){sndOn=!sndOn;$("#t-snd").setAttribute("aria-pressed",String(sndOn));
+   if(sndOn){graph();rampOn();SND.select();if(jobs.some(x=>x.state==="run")){humStart();sonStart(jid*97);}}else rampOff();
+   persist();},
+ calm(){const on=calm();document.documentElement.dataset.calm=on?"off":"on";$("#t-calm").setAttribute("aria-pressed",String(!on));persist();},
+ pol(){const l=document.documentElement.dataset.theme==="light";document.documentElement.dataset.theme=l?"dark":"light";
+   $("#t-pol").setAttribute("aria-pressed",String(!l));persist();},
+ lang(){lang=lang==="ru"?"en":"ru";persist();applyLang();},
+ sonify(){sonify=!sonify;persist();
+   if(!sonify)sonStop();else if(jobs.some(x=>x.state==="run"))sonStart(jid*97);
+   journal((lang==="ru"?"сонификация: ":"sonify: ")+(sonify?(lang==="ru"?"вкл":"on"):(lang==="ru"?"выкл":"off")));},
+ help(){$("#help").hidden=false;},
+ demoEmpty(){Transport.db.files=[];sel=0;load();},
+ demoFault(){Transport.fault="readdir";load();},
+ demoRestore(){Transport.fault=null;Transport.db.files=DEMO.map(f=>({...f}));sel=0;load();journal(t().jRestored);}};
+
+/* ---- команды ---- */
+const ACTS=["encrypt","decrypt","evolve","export","snd","sonify","calm","pol","lang","help","demoEmpty","demoFault","demoRestore"];
+const KEYS={encrypt:"E",decrypt:"D",evolve:"G",export:"X",help:"?"};
+let RC={};try{RC=JSON.parse(localStorage.getItem("helix-ui-rc")||"{}")}catch(e){}
+function fuzzy(q,s){if(!q)return 1;let qi=0,score=0,run=0;
+  for(let i=0;i<s.length&&qi<q.length;i++){if(s[i].toLowerCase()===q[qi].toLowerCase()){qi++;run++;score+=1+run;}else run=0;}
+  return qi===q.length?score:0;}
+let iSel=0;
+function openIntent(){$("#intent").hidden=false;iSel=0;$("#intent-in").value="";renderIntent("");$("#intent-in").focus();}
+function renderIntent(q){const list=ACTS.map(id=>({id,s:fuzzy(q,t().acts[id])}))
+    .filter(x=>x.s>0||!q).sort((a,b)=>(b.s-a.s)||((RC[b.id]||0)-(RC[a.id]||0))).map(x=>x.id);
+  iSel=Math.min(iSel,Math.max(0,list.length-1));
+  $("#intent-list").innerHTML=list.map((id,i)=>`<li data-id="${id}" class="${i===iSel?"on":""}"><span>${t().acts[id]}</span>${KEYS[id]?`<span class="k">${KEYS[id]}</span>`:""}</li>`).join("")||`<li><span>${t().none}</span></li>`;
+  $("#intent-list").querySelectorAll("li[data-id]").forEach(el=>el.addEventListener("click",()=>runCmd(el.dataset.id)));
+  return list;}
+function runCmd(id){$("#intent").hidden=true;RC[id]=(RC[id]||0)+1;
+  try{localStorage.setItem("helix-ui-rc",JSON.stringify(RC))}catch(e){}A[id]&&A[id]();}
+$("#intent-in").addEventListener("input",e=>{iSel=0;renderIntent(e.target.value);});
+$("#intent-in").addEventListener("keydown",e=>{const list=renderIntent($("#intent-in").value);
+  if(e.key==="ArrowDown"){iSel=Math.min(list.length-1,iSel+1);renderIntent($("#intent-in").value);e.preventDefault();}
+  if(e.key==="ArrowUp"){iSel=Math.max(0,iSel-1);renderIntent($("#intent-in").value);e.preventDefault();}
+  if(e.key==="Enter"&&list[iSel])runCmd(list[iSel].id?list[iSel].id:list[iSel]);});
+
+/* ---- ввод ---- */
+document.addEventListener("keydown",e=>{
+  const inIn=/^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+  if(e.key==="Escape"){$("#intent").hidden=true;$("#help").hidden=true;if(!$("#dialog").hidden)closeDialog();return;}
+  if(e.ctrlKey&&e.key.toLowerCase()==="k"){e.preventDefault();openIntent();return;}
+  if(inIn){if(e.key==="Enter"&&!$("#dialog").hidden)dialogOK();return;}
+  switch(e.key){
+    case "j":if(view.files.length){sel=Math.min(view.files.length-1,sel+1);renderSel();$("#rows").focus({preventScroll:true});SND.select();hlGen(view.files[sel].gen);}break;
+    case "k":if(view.files.length){sel=Math.max(0,sel-1);renderSel();$("#rows").focus({preventScroll:true});SND.select();hlGen(view.files[sel].gen);}break;
+    case "e":A.encrypt();break;case "d":A.decrypt();break;case "g":A.evolve();break;case "x":A.export();break;
+    case "r":if(view.status==="error"){Transport.fault=null;load();}break;
+    case "?":A.help();break;}});
+$("#btn-enc").addEventListener("click",e=>A.encrypt(e.currentTarget));
+$("#btn-dec").addEventListener("click",e=>A.decrypt(e.currentTarget));
+$("#btn-evo").addEventListener("click",()=>A.evolve());
+$("#btn-exp").addEventListener("click",()=>A.export());
+$("#d-ok").addEventListener("click",dialogOK);
+$("#d-cancel").addEventListener("click",closeDialog);
+$("#t-snd").addEventListener("click",()=>A.snd());
+$("#t-calm").addEventListener("click",()=>A.calm());
+$("#t-pol").addEventListener("click",()=>A.pol());
+$("#t-lang").addEventListener("click",()=>A.lang());
+$("#t-help").addEventListener("click",()=>A.help());
+$("#intent").addEventListener("click",e=>{if(e.target.id==="intent")$("#intent").hidden=true;});
+$("#help").addEventListener("click",e=>{if(e.target.id==="help")$("#help").hidden=true;});
+$("#dialog").addEventListener("click",e=>{if(e.target.id==="dialog")closeDialog();});
+document.querySelectorAll("[data-sprev]").forEach(b=>b.addEventListener("click",()=>{
+  const k=b.dataset.sprev,r=dR();
+  ({select:()=>SND.select(r,true),hand:()=>SND.hand(r,true),packet:()=>SND.packet(.5,4242,true),
+    seal:()=>SND.seal(r,true),unseal:()=>SND.unseal(r,true),err:()=>SND.err(r,true)})[k]();}));
+
+/* ---- старт ---- */
+$("#t-snd").setAttribute("aria-pressed",String(sndOn));
+$("#t-calm").setAttribute("aria-pressed",String(calm()));
+$("#t-pol").setAttribute("aria-pressed",String(document.documentElement.dataset.theme==="light"));
+applyLang();hlGen(view.gen);requestAnimationFrame(tickJobs);
+</script>
+</body>
+</html>

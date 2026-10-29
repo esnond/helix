@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -632,8 +633,8 @@ int sim_run(sim_t* s, void (*frame_cb)(sim_t*, void*), void* cb_arg)
 double sim_fitness(const sim_t* s)
 {
     /* chemotaxis performance plus net approach to the attractive source */
-    double d0 = hypot((double)(6.0 - ODOR_A_X_MM), (double)(8.0 - ODOR_A_Y_MM));
-    double d1 = hypot((double)(s->body.x[0] - ODOR_A_X_MM),
+    double d0 = vm_hypot((double)(6.0 - ODOR_A_X_MM), (double)(8.0 - ODOR_A_Y_MM));
+    double d1 = vm_hypot((double)(s->body.x[0] - ODOR_A_X_MM),
                       (double)(s->body.y[0] - ODOR_A_Y_MM));
     double approach = (d0 - d1) / d0;
     return (double)s->metrics.chemotaxis_index * 100.0 + 50.0 * approach

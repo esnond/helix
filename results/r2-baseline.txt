@@ -1,0 +1,48 @@
+sh tests/run_tests.sh
+test: wordlist integrity
+test: generated headers reproducible
+src/wordlist.h: 2048 words
+rfc8439 vectors extracted (block, cipher, poly, polygen, aead)
+vectors: 10 sha, 6 hmac, 5 pbkdf2, 24 bip39
+test: test_backward_compat
+test_backward_compat: 43 ok, 0 failed
+test: test_bip39
+test_bip39: 128 ok, 0 failed
+test: test_chacha
+test_chacha: 10 ok, 0 failed
+test: test_dna
+test_dna: 11 ok, 0 failed
+test: test_evolution
+mutation flips: mean 47.52 over 1000 gens (expected 48)
+chain hamming: mean 125.91, variance 91.76 over 199 steps (expected mean 128, variance 64)
+test_evolution: 1213 ok, 0 failed
+test: test_evolve
+test_evolve: 27 ok, 0 failed
+test: test_forward_secrecy
+flips along chain: mean 45.81 over 48 gens
+test_forward_secrecy: 111 ok, 0 failed
+test: test_kdf
+derive: 448 cells, 10000 steps, 2.68 s
+connectome: cannot parse data/no-such-connectome.csv
+key(case0,salt_a): 4b6d7dcd2c168ad86b7274f2bf5cb902141d9983493d6d1267bff08526a9f8b2
+test_kdf: 11 ok, 0 failed
+test: test_keychain
+test_keychain: 40 ok, 0 failed
+test: test_vectors
+test_vectors: 37 ok, 0 failed
+test: shell determinism, two derive runs bitwise identical
+helix: 448 cells, 600000 iters, 10000 steps
+helix: 448 cells, 600000 iters, 10000 steps
+shell determinism: ok
+test: shell evolution determinism, two fresh keychains
+helix: bootstrapped gen 0 (448 cells)
+helix: bootstrapped gen 0 (448 cells)
+helix: bootstrapped gen 0 (3145728 cells)
+helix: bootstrapped gen 0 (3145728 cells)
+shell evolution determinism: ok
+test: cli dna roundtrip (1 mb random file)
+helix: encrypted /tmp/helix_cli.bin -> /tmp/helix_cli.dna (generation 0)
+helix: decrypted /tmp/helix_cli.dna -> /tmp/helix_cli.out
+helix: decrypted /tmp/helix_cli.dna -> /tmp/helix_cli.out
+cli dna roundtrip: ok
+tests: ok

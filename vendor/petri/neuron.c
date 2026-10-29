@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <string.h>
 #include "neuron.h"
 #include "config.h"
@@ -6,7 +7,7 @@
 /* graded transmitter release, no spikes anywhere in this model */
 float neuron_act(const neuron_t* c)
 {
-    return 1.0f / (1.0f + expf(-(c->v - ACT_HALF_MV) / ACT_SLOPE_MV));
+    return 1.0f / (1.0f + vm_expf(-(c->v - ACT_HALF_MV) / ACT_SLOPE_MV));
 }
 
 int nervous_find(const nervous_t* ns, const char* name)
@@ -93,7 +94,7 @@ void nervous_step(nervous_t* ns, float dt, float tau_mod, rng_t* rng)
            tone, the wave needs it */
         if (c->type == NT_COMMAND)
             c->i_adapt += dt / ADAPT_TAU_MS * (neuron_act(c) * ADAPT_GAIN_MV - c->i_adapt);
-        float noise = NOISE_SD_MV * c->noise_scale * sqrtf(dt);
+        float noise = NOISE_SD_MV * c->noise_scale * vm_sqrtf(dt);
         float tau, i_tot;
         if (c->ablated) {
             c->v = c->v_rest;

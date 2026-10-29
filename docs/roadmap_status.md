@@ -1,4 +1,4 @@
-# roadmap status after r2 (2026-10-28)
+# roadmap status after r5 (2026-10-29)
 
 ## done
 
@@ -11,7 +11,15 @@
   decrypt, 100 mb in 3.6 s. suite: 10 test binaries + shell gates,
   all green.
 
-## r3: post quantum hybrid kem — next, not started
+## r3: post quantum hybrid kem — DONE (2026-10-29)
+
+shipped: vendor/kyber (pq-crystals reference, KYBER_K=3), src/kyber_wrap.c,
+.dna v2 with kdf_type 1, tests/test_kyber.c (14 checks), docs/r3_spec.md.
+honest boundary stated there: the kyber keypair is derived from the
+generation key, so this is hybrid plumbing for a later external-keypair
+format, NOT quantum safety. v1 files are refused, not migrated.
+
+## r3 plan as written before the run (kept for the record)
 
 plan (brief option C): vendor the pq-crystals/kyber reference c
 implementation under vendor/pqcrystals-kyber with full provenance

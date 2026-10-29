@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "dna.h"
+#include "kyber_wrap.h"
 #include "aead.h"
 #include "sha256.h"
 #include "entropy.h"
@@ -123,6 +124,9 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     if (helix_generation_key(mnemonic, keychain_path, generation,
                              gen_key) != 0)
         return -3;
+    memset(header, 0, sizeof header);
+    /* order matters: the salt is written after the clear, otherwise the
+       memset wipes it and every file carries an all-zero salt */
     if (entropy_fill(header + 5, DNA_SALT_LEN) != 0) {
         memset(gen_key, 0, sizeof gen_key);
         return -1;
@@ -131,13 +135,29 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
         memset(gen_key, 0, sizeof gen_key);
         return -1;
     }
-    memset(header, 0, sizeof header);
     memcpy(header, DNA_MAGIC, 4);
     header[4] = DNA_VERSION;
     store32_be(header + 37, HELIX_PBKDF2_ITERS);
     store32_be(header + 41, generation);
-    header[45] = DNA_KDF_PBKDF2;
+    header[45] = DNA_KDF_HYBRID;
     header[46] = DNA_CIPHER_CHACHA;
+    {
+        uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
+        uint8_t ss[32], comb[32];
+        if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
+            helix_kyber_encaps(gen_key, 32, pk, header + DNA_HEADER_BASE,
+                               ss) != 0) {
+            memset(gen_key, 0, sizeof gen_key);
+            memset(session, 0, sizeof session);
+            return -3;
+        }
+        helix_hybrid_key(gen_key, ss, comb);
+        memcpy(gen_key, comb, 32);
+        memset(pk, 0, sizeof pk);
+        memset(sk, 0, sizeof sk);
+        memset(ss, 0, sizeof ss);
+        memset(comb, 0, sizeof comb);
+    }
     /* wrap the session key, 48 bytes used of the 64 byte field.
        aad is the header prefix up to the esk field: the full header
        cannot cover its own encrypted contents */
@@ -208,7 +228,12 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
         free(file);
         return -2;
     }
-    if (info.kdf_type != DNA_KDF_PBKDF2 || info.cipher != DNA_CIPHER_CHACHA) {
+    if ((info.kdf_type != DNA_KDF_PBKDF2 && info.kdf_type != DNA_KDF_HYBRID) ||
+        info.cipher != DNA_CIPHER_CHACHA) {
+        free(file);
+        return -2;
+    }
+    if (info.generation > DNA_GEN_MAX) {
         free(file);
         return -2;
     }
@@ -216,6 +241,23 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
                              gen_key) != 0) {
         free(file);
         return -3;
+    }
+    if (info.kdf_type == DNA_KDF_HYBRID) {
+        uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
+        uint8_t ss[32], comb[32];
+        if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
+            helix_kyber_decaps(gen_key, 32, sk, header + DNA_HEADER_BASE,
+                               ss) != 0) {
+            memset(gen_key, 0, sizeof gen_key);
+            free(file);
+            return -3;
+        }
+        helix_hybrid_key(gen_key, ss, comb);
+        memcpy(gen_key, comb, 32);
+        memset(pk, 0, sizeof pk);
+        memset(sk, 0, sizeof sk);
+        memset(ss, 0, sizeof ss);
+        memset(comb, 0, sizeof comb);
     }
     if (chacha20_poly1305_open(session, header + 47, 32, header + 47 + 32,
                                header, 47, gen_key, header + 5) != 0) {

@@ -1,0 +1,11 @@
+# helix-gui
+/target
+Cargo.lock
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.exp
+vendor/petri/build

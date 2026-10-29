@@ -1,0 +1,6 @@
+differential fuzz: 100000 vectors, 0 mismatches (12.8 s)
+  hmac_sha512   18105/ 18105
+  pbkdf2         1985/  1985
+  sha256        59940/ 59940
+  sha512        19970/ 19970
+  95% upper bound on mismatch rate (rule of three, 0 seen): 3.0e-05

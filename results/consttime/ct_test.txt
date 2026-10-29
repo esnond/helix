@@ -1,0 +1,6 @@
+traces: 4000000 (+1000000 for mask/controls)
+keycheck_verify   n=1999410/2000590 mean 3578/3579 ns  t =    0.128  pass
+mask apply        n=499838/500162 mean 12404/12397 ns  t =   -0.487  pass
+a/a control       t =    0.492  pass
+positive control  t = 1809.738  detected (must be > 10)
+result: pass
