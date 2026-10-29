@@ -213,7 +213,13 @@ impl App {
                 };
                 let gen = d.target_gen;
                 let inp = inp.clone();
-                let out = format!("{inp}.dna");
+                /* report.pdf -> report.dna: the last extension is
+                   replaced, not appended; a file without one keeps its
+                   full name */
+                let out = match std::path::Path::new(&inp).file_stem() {
+                    Some(stem) => format!("{}.dna", stem.to_string_lossy()),
+                    None => format!("{inp}.dna"),
+                };
                 self.phrase = Some(m.clone());
                 self.start_job(Op::Encrypt { inp, out, m, gen, pair });
             }

@@ -511,6 +511,14 @@ mod gui_flow_tests {
         .unwrap_err();
         assert!(e.contains("invalid phrase"), "{e}");
 
+        /* the gui names outputs stem.dna (report.pdf -> report.dna) */
+        assert_eq!(
+            std::path::Path::new("/x/report.pdf")
+                .file_stem()
+                .map(|s| format!("{}.dna", s.to_string_lossy())),
+            Some("report.dna".to_string())
+        );
+
         /* overwrite refusal before any state change */
         assert!(encrypt_ex(&phrase, &v2, MNEMONIC, None, 0, None)
             .unwrap_err()

@@ -23,6 +23,49 @@ fn rng_next(state: &mut u64) -> u64 {
 }
 
 /// contact tick: 6 ms of high-passed noise, exponential decay
+/* soft ui sound set (owner choice 2026-10-30): a delicate click, a
+   gentle two-note chime and a low dud replace the contact/plate/hum/
+   relay palette; everything sits far below full scale. */
+pub fn soft_click(out: &mut Vec<f32>, sr: u32, seed: u64) {
+    let n = (sr as usize) * 30 / 1000;
+    let jitter = 0.9 + 0.2 * ((seed % 7) as f32) / 7.0;
+    for i in 0..n {
+        let t = i as f32 / sr as f32;
+        let env = (-t * 220.0).exp();
+        let v = (2.0 * std::f32::consts::PI * 1500.0 * jitter * t).sin()
+            + 0.3 * (2.0 * std::f32::consts::PI * 3200.0 * t).sin();
+        out.push(0.10 * env * v);
+    }
+}
+
+pub fn chime(out: &mut Vec<f32>, sr: u32, seed: u64) {
+    let n = (sr as usize) * 420 / 1000;
+    let det = 1.0 + 0.01 * ((seed % 5) as f32) / 5.0;
+    for i in 0..n {
+        let t = i as f32 / sr as f32;
+        let mut v = 0.0;
+        for (k, f) in [(0.0f32, 1318.0f32), (0.07, 987.0f32)] {
+            let ts = t - k as f32 * 0.07;
+            if ts > 0.0 {
+                v += (-ts * 9.0).exp()
+                    * (2.0 * std::f32::consts::PI * f * det * ts).sin();
+            }
+        }
+        out.push(0.07 * v);
+    }
+}
+
+pub fn dud(out: &mut Vec<f32>, sr: u32) {
+    let n = (sr as usize) * 180 / 1000;
+    let mut phase = 0.0f32;
+    for i in 0..n {
+        let t = i as f32 / sr as f32;
+        let f = 210.0 - 60.0 * (t / 0.18);
+        phase += 2.0 * std::f32::consts::PI * f / sr as f32;
+        out.push(0.09 * (-t * 14.0).exp() * phase.sin());
+    }
+}
+
 pub fn tick(out: &mut Vec<f32>, sr: u32, seed: u64, gain: f32) {
     let n = (sr as usize * 6) / 1000;
     let mut st = seed | 1;

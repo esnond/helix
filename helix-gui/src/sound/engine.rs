@@ -78,25 +78,21 @@ mod active {
         let mut buf = Vec::new();
         match ev {
             Event::Tick { bucket } => {
-                let seed = sources::jitter_hash("tick", "press", *bucket);
-                sources::tick(&mut buf, sr, seed, 0.5);
-                sources::thump(&mut buf, sr);
+                let seed = sources::jitter_hash("click", "press", *bucket);
+                sources::soft_click(&mut buf, sr, seed);
             }
             Event::Plate { bucket } => {
-                let seed = sources::jitter_hash("plate", "done", *bucket);
-                sources::plate(&mut buf, sr, 220.0, seed);
-                sources::tick(&mut buf, sr, seed ^ 1, 0.4);
+                let seed = sources::jitter_hash("chime", "done", *bucket);
+                sources::chime(&mut buf, sr, seed);
             }
             Event::Fault { bucket } => {
-                let seed = sources::jitter_hash("fault", "error", *bucket);
-                sources::fault(&mut buf, sr, seed);
+                let _ = bucket;
+                sources::dud(&mut buf, sr);
             }
-            Event::Line { ms, bucket } => {
-                let seed = sources::jitter_hash("line", "transfer", *bucket);
-                sources::line(&mut buf, sr, *ms, seed);
-            }
+            /* transfer and coil hum are silenced in the soft set */
+            Event::Line { .. } => return,
             Event::Hum { on } => {
-                *hum_on = *on;
+                *hum_on = false;
                 return;
             }
         }
@@ -129,7 +125,6 @@ mod active {
     let sr = cfg.sample_rate().0;
     let channels = cfg.channels() as usize;
     let mut chain = Chain::new(sr);
-    let mut hum_phase = 0.0f32;
     let mut hum_on = false;
     let ring_cb = ring.clone();
 
@@ -143,17 +138,11 @@ mod active {
                         let take = r.len().min(want);
                         r.drain(..take).collect::<Vec<f32>>()
                     };
-                    if hum_on && block.len() < want {
-                        let mut hb = Vec::new();
-                        sources::hum(&mut hb, sr, &mut hum_phase, true);
-                        block.truncate(want);
-                        block.extend_from_slice(&hb);
-                    }
                     block.resize(want, 0.0);
                     chain.process(&mut block);
                     for (i, v) in block.into_iter().enumerate() {
                         for c in 0..channels {
-                            out[i * channels + c] = v;
+                            out[i * channels + c] = 0.5 * v;
                         }
                     }
                 },
