@@ -1,31 +1,47 @@
 //! lain font config — monospace, regular only, crisp pixels.
-//! uses bundled font if available, falls back to system monospace.
+//! loads DejaVu Sans Mono from system, falls back to embedded.
 
 use eframe::egui;
+use std::path::Path;
 
-pub const FONT_FAMILY: &str = "monospace"; // egui will pick system monospace (Fira Code / JetBrains Mono / DejaVu Sans Mono)
+pub const FONT_FAMILY: &str = "lain_mono";
 pub const FONT_SIZE_BODY: f32 = 13.0;
 pub const FONT_SIZE_DIM: f32 = 11.0;
 pub const FONT_SIZE_GEN: f32 = 18.0;
+
+fn load_system_mono() -> Option<egui::FontData> {
+    // try common system monospace font paths
+    let candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+        "/usr/local/share/fonts/dejavu/DejaVuSansMono.ttf",
+    ];
+    for path in candidates {
+        if Path::new(path).exists() {
+            if let Ok(data) = std::fs::read(path) {
+                return Some(egui::FontData::from_owned(data));
+            }
+        }
+    }
+    None
+}
 
 pub fn apply(ctx: &egui::Context) {
     // no bold anywhere — phosphor terminals don't bold
     let mut fonts = egui::FontDefinitions::default();
     
-    // add a monospace font if not present
-    if !fonts.font_data.contains_key("lain_mono") {
-        // use system font as fallback since we don't have bundled font
+    // load system monospace font
+    if let Some(font_data) = load_system_mono() {
+        fonts.font_data.insert(FONT_FAMILY.to_owned(), font_data);
         fonts.families
             .entry(egui::FontFamily::Monospace)
             .or_default()
             .insert(0, FONT_FAMILY.to_owned());
+        fonts.families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, FONT_FAMILY.to_owned());
     }
-    
-    // also update proportional family to use same font for consistency
-    fonts.families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(0, FONT_FAMILY.to_owned());
     
     ctx.set_fonts(fonts);
     
