@@ -217,6 +217,14 @@ impl eframe::App for App {
             }
         }
 
+        // quit: ctrl+q, because a borderless fullscreen window has no
+        // title bar to click. egui 0.23 has no viewport-close command, so
+        // this exits the process; the settings were saved when changed.
+        if keyboard_free_conv(ctx) && ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Q)) {
+            self.settings.save();
+            std::process::exit(0);
+        }
+
         // keyboard, only when no text field owns the keys
         let keyboard_free = !ctx.wants_keyboard_input();
         if keyboard_free && self.dialog.mode.is_none() {
@@ -256,6 +264,14 @@ impl eframe::App for App {
         }
 
 
+
+        // quit: ctrl+q, because a borderless fullscreen window has no
+        // title bar to click. egui 0.23 has no viewport-close command, so
+        // this exits the process; the settings were saved when changed.
+        if keyboard_free_conv(ctx) && ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Q)) {
+            self.settings.save();
+            std::process::exit(0);
+        }
 
         // keyboard, only when no text field owns the keys
         let keyboard_free = !ctx.wants_keyboard_input();
@@ -539,6 +555,10 @@ fn wants_fullscreen() -> bool {
         std::env::var("HELIX_FULLSCREEN").as_deref(),
         Ok("1") | Ok("true") | Ok("yes")
     )
+}
+
+fn keyboard_free_conv(ctx: &egui::Context) -> bool {
+    !ctx.wants_keyboard_input()
 }
 
 fn main() -> eframe::Result<()> {
