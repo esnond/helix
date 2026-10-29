@@ -59,16 +59,22 @@ tools/evolve_chain: tools/evolve_chain.o $(OBJ) libpetri.a
 tools/evolve_chain.o: tools/evolve_chain.c $(wildcard src/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-tools/ct_test: tools/ct_test.o $(CRYPTO_OBJ) $(MATH_OBJ) libpetri.a
-	$(CC) $(CFLAGS) -o $@ $< $(CRYPTO_OBJ) $(MATH_OBJ) libpetri.a $(LIBM_FOR_TOOLS)
+tools/ct_test: tools/ct_test.o $(OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ $< $(OBJ) libpetri.a $(LIBM_FOR_TOOLS)
 
 tools/ct_test.o: tools/ct_test.c $(wildcard src/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-tools/diff_crypto: tools/diff_crypto.o $(CRYPTO_OBJ)
-	$(CC) $(CFLAGS) -o $@ $< $(CRYPTO_OBJ) $(MATH_OBJ) libpetri.a
+tools/diff_crypto: tools/diff_crypto.o $(OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ $< $(OBJ) libpetri.a
 
 tools/diff_crypto.o: tools/diff_crypto.c $(wildcard src/*.h)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+tools/fuzz_dna: tools/fuzz_dna.o $(OBJ) libpetri.a
+	$(CC) $(CFLAGS) -o $@ $< $(OBJ) libpetri.a
+
+tools/fuzz_dna.o: tools/fuzz_dna.c $(wildcard src/*.h)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 tools/math_diff: tools/math_diff.o $(MATH_OBJ)
@@ -87,6 +93,7 @@ clean:
 	rm -f vendor/petri/*.o vendor/kyber/*.o src/*.o src/vendored_math/*.o libpetri.a $(TESTS) tests/*.o helix \
 	      tools/evolve_chain tools/evolve_chain.o \
 	      tools/math_diff tools/math_diff.o \
+	      tools/fuzz_dna tools/fuzz_dna.o \
 	      tools/diff_crypto tools/diff_crypto.o \
 	      tools/ct_test tools/ct_test.o \
 	      tools/timing_bench tools/timing_bench.o
