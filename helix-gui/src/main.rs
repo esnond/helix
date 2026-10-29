@@ -511,16 +511,43 @@ impl App {
     }
 }
 
-fn main() -> eframe::Result<()> {
-    // the c core resolves the connectome relative to the cwd; gui runs
-    // from helix-gui/ inside the repo, so point it at the vendored file
-    if !std::path::Path::new("vendor/petri/data/herm_302.csv").exists() {
-        std::env::set_var("HELIX_CONNECTOME", "../vendor/petri/data/herm_302.csv");
+fn resolve_connectome() {
+    if std::env::var_os("HELIX_CONNECTOME").is_some() {
+        return;
     }
+    /* the c core opens the table relative to the cwd. launched from the
+       launcher the cwd is $HOME, so try the build tree explicitly and
+       fall back to the compile-time location last */
+    let candidates = [
+        "vendor/petri/data/herm_302.csv",
+        "../vendor/petri/data/herm_302.csv",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../vendor/petri/data/herm_302.csv"),
+    ];
+    for c in candidates {
+        if std::path::Path::new(c).exists() {
+            std::env::set_var("HELIX_CONNECTOME", c);
+            return;
+        }
+    }
+}
+
+fn wants_fullscreen() -> bool {
+    if std::env::args().any(|a| a == "--fullscreen" || a == "-f") {
+        return true;
+    }
+    matches!(
+        std::env::var("HELIX_FULLSCREEN").as_deref(),
+        Ok("1") | Ok("true") | Ok("yes")
+    )
+}
+
+fn main() -> eframe::Result<()> {
+    resolve_connectome();
     let mut app = App::default();
     app.rescan();
     let opts = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1040.0, 660.0)),
+        fullscreen: wants_fullscreen(),
         ..Default::default()
     };
     eframe::run_native("helix", opts, Box::new(move |cc| {

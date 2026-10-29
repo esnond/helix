@@ -42,6 +42,32 @@ cargo run                   # needs a display
 cargo test                  # 2 tests, both drive the c core through ffi
 ```
 
+## install as a launcher entry
+
+```
+cargo build --release
+install -Dm755 target/release/helix-gui ~/.local/bin/helix-gui
+```
+
+`~/.local/share/applications/helix-gui.desktop`:
+
+```
+[Desktop Entry]
+Type=Application
+Name=helix
+Comment=Key manager: encrypt and decrypt .dna files
+Exec=/home/esnond/.local/bin/helix-gui --fullscreen
+TryExec=/home/esnond/.local/bin/helix-gui
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;Security;
+```
+
+then `update-desktop-database ~/.local/share/applications`. with dwl and
+wmenu that is `Mod+P`, type `helix`. `--fullscreen` (or `-f`, or
+`HELIX_FULLSCREEN=1`) starts borderless fullscreen; the connectome table is
+resolved from the build tree, so the launcher's cwd no longer matters.
+
 ## architecture
 
 `src/gui_api.c` is the only unsafe boundary: it exposes the C core as
