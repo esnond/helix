@@ -5,8 +5,8 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 2 done (r3 kyber-768 hybrid, .dna v2)
-- next: phase 3 r4-prime decision, then phase 4 gui
+- phase: 3 done (helixd cancelled, HX-8)
+- next: phase 4 gui in v5 language
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
 - head at phase 0 close: (this commit)
@@ -39,7 +39,7 @@ Written 2026-10-29.
 | h1.4 | dudect t-test, targets < 4.5, pos control 1809 | 1 | done | results/consttime/ | (phase1b commit) |
 | r3 | kyber-768 hybrid, .dna v2 kdf_type=1, kdf_type=0 decoded | 2 | done | tests/test_kyber 14 ok, docs/r3_spec.md | (r3 commit) |
 | a4.1 | v1 files carried an all-zero salt | 2 | done | fixed in dna.c, verified | (r3 commit) |
-| r4p | r4' decision: helixd OTP daemon OR documented cancellation (HX-8) | 3 | pending | — | — |
+| r4p | helixd cancelled, documented (HX-8) | 3 | done | docs/r4_decision.md | (r4p commit) |
 | r5 | GUI in v5 design language | 4 | pending | lain_skin base @ `de46886` | — |
 | rel | release v1.3 + paper docs | 5 | pending | — | — |
 

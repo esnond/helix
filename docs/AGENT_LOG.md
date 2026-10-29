@@ -79,3 +79,13 @@ run (agents are sequential; the adversary pass runs before the phase-1 gate).
   the generation key, so a quantum adversary holding the mnemonic gains
   nothing. Recorded in docs/r3_spec.md; the release text must not say
   "quantum-safe".
+
+<!-- A5 -->
+## A5 r4-prime decision, recorded without an agent run
+
+Both options were weighed in docs/r4_decision.md: a resident Erlang/OTP
+batch daemon versus documented cancellation. Cancellation wins on four
+grounds — no consumer after HX-7, attack surface, the seam rule (there is
+no simulator artefact to hand over), and the absence of a supervision test
+harness. A falsifier is written down so the decision can be reopened on
+evidence rather than on mood.
