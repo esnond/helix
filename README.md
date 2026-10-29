@@ -22,17 +22,22 @@ c99, posix subset, no external libraries. the petri engine (c.
 elegans connectome simulator, v1.0.1) is vendored verbatim under
 vendor/petri, see vendor/petri/VENDORED.md for provenance and hashes.
 
-status: r5, release v1.3. seed generation, deterministic key derivation
-(r0), key evolution (r1), the .dna archive format (r2), a kyber-768
-hybrid .dna v2 (r3) and a gui in the v5 design language (r5) are done.
-four prior criticisms are closed with evidence: the libm boundary is
-gone (docs/hypotheses.md h1.1), the chain has a written reduction
-(h1.2, docs/security_proof.md), 100k differential vectors and a
-constant-time harness back the crypto claims (h1.3, h1.4). the r4
-directory service and the helixd daemon are cancelled on the record
+status: v1.0. seed generation, deterministic key derivation (r0),
+key evolution (r1), the .dna archive format (r2), a kyber-768 hybrid
+.dna v2 (r3), a gui in the v5 design language (r5) and the v1.0
+closure are done. v1.0 adds: the .dna v3 two-factor format (external
+kyber-768 pair in a passphrase-encrypted .hkpair + argon2id per rfc
+9106, kat-pinned), the encrypted keychain kch2 (aead, flock, kch1
+in-place migration), secure secret scrubbing (volatile memzero +
+mlock), a 20M-iteration asan/ubsan parser fuzzer, a rewritten
+mouse-first gui with procedural sound, and musl + arm64 replays with
+identical keys (results/cross_platform/). earlier closures: libm
+boundary gone (h1.1), prf-game reduction (h1.2, docs/security_proof.md),
+100k differential vectors + constant-time harness (h1.3, h1.4). the
+r4 directory service and helixd daemon are cancelled on the record
 (docs/r4_decision.md). milestone docs: docs/r1_spec.md,
 docs/r1_security.md, docs/dna_format.md, docs/r3_spec.md,
-docs/r5_spec.md, docs/security_proof.md.
+docs/r5_spec.md, docs/r6_spec.md, docs/security_proof.md.
 
 ## what this is
 
@@ -50,7 +55,8 @@ docs/r5_spec.md, docs/security_proof.md.
 - a production key manager
 - a replacement for argon2, scrypt, pbkdf2-as-deployed, age or
   libsodium
-- quantum resistant (r3 planned, nothing shipped)
+- quantum resistant (kyber-768 is a pre-quantum assumption; v3 adds
+  an external pair factor, not a quantum proof)
 
 ## security guarantees
 
@@ -67,8 +73,8 @@ not guaranteed:
 
 - side channel resistance beyond what is measured (power, em,
   microarchitectural attacks are unmeasured)
-- bitwise replay across architectures, operating systems or libm
-  versions (float analysis: results/cross_platform/float_analysis.md)
+- bitwise replay on macos, windows or big-endian targets (musl and
+  arm64 replays are closed: results/cross_platform/)
 - any strength claim for the connectome stage beyond computational
   cost (no formal security proof exists or is claimed)
 

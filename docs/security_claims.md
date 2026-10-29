@@ -72,3 +72,32 @@ the cost ASSUMPTION inherits everything known about pbkdf2 (memory
 hardness: none; asic parallelization: moderate). argon2id would be
 the modern choice; pbkdf2 was chosen for r0 spec fidelity. recorded
 as a design debt, revisit before any production claim.
+
+## claim 8: a v3 archive decrypts only with two factors
+
+scope: .dna files written with kdf_type=2 (docs/dna_format.md v3).
+the session key is sha256(external kyber ss || chain_key ||
+"helix-v3-external"); the kyber-768 secret key exists only inside a
+passphrase-encrypted .hkpair file. test enforced: a v3 archive
+refuses decryption with the mnemonic alone, with a wrong pair
+passphrase, and with a different pair (test_hkpair 25/25); the
+argon2id/pbkdf2 pair-file kdfs are pinned to rfc 9106 section 5.3
+and rfc 7693 vectors (test_argon2id 4/4). falsified-by design: any
+v3 archive that decrypts without both factors. residual: whoever
+holds the phrase AND the pair file decrypts; the pair passphrase
+entropy is the owner's; kyber-768 is a pre-quantum kem assumption
+(shipped, not a proof).
+
+## claim 9: the keychain is tamper evident and exclusively held
+
+scope: kch2. the whole entry area is one chacha20poly1305 record
+under sha256(mk || "helix-kch"); the header (counter, length, body
+offset, fingerprint) is the aad, and every rewrite uses a fresh
+nonce, so an observed older file version reveals nothing. test
+enforced: a flipped ciphertext byte is refused (-4), a wrong master
+key is refused (-3), a second process is refused while the handle is
+open (-6, flock), legacy kch1 migrates in place with history intact
+(test_keychain 64/64). falsified-by design: any modified chain that
+opens successfully. residual: a torn 44-byte header write in a crash
+loses the chain (limitations 6), and the decrypted chain lives in ram
+while the handle is open.

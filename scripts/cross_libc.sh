@@ -13,10 +13,10 @@ S=00112233445566778899aabbccddeeff
 CF="-std=c99 -pedantic -Wall -Wextra -Werror -O2 -ffp-contract=off -D_DEFAULT_SOURCE"
 make clean >/dev/null
 CC=musl-gcc make CC=musl-gcc CFLAGS="$CF" >/dev/null
-musl_key=$(./helix derive -m "$M" -s $S | tail -1)
+musl_key=$(LD_PRELOAD= ./helix derive -m "$M" -s $S | tail -1)
 make clean >/dev/null
 make CFLAGS="$CF" >/dev/null
-glibc_key=$(./helix derive -m "$M" -s $S | tail -1)
+glibc_key=$(LD_PRELOAD= ./helix derive -m "$M" -s $S | tail -1)
 echo "musl  $musl_key"
 echo "glibc $glibc_key"
 [ "$musl_key" = "$glibc_key" ] || { echo "CROSS_LIBC_MISMATCH" >&2; exit 1; }

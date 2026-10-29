@@ -1,0 +1,10 @@
+# helix v1.0-rc reproducibility manifest
+# Generated: 2026-10-29T20:18:42Z
+# Compiler: cc (Debian 14.2.0-19) 14.2.0
+# Flags: -std=c99 -pedantic -Wall -Wextra -Werror -O2 -ffp-contract=off -D_DEFAULT_SOURCE (vendored math, no libm; kyber-768 vendored)
+# Core binary sha256: 2db87599f725ceedf7efd9af19ff6066cc6e35795fd3ed02cc44cdca36a1ae51
+# GUI binary sha256: 8b7f53f4c1f1b4df5f10237b16417bbff8cb19f36c174f774d9d76460df04adf
+# GUI: eframe/egui 0.23, cargo 1.99.1, rustc 1.99.1
+# Pinned vectors: rfc 9106 §5.3 argon2id, rfc 7693 blake2b, rfc 8439 aead, bip39, pbkdf2/hmac/sha kats (tests/)
+# Fuzz seeds: dna corpus xorshift64* 0x68757a7a6831
+# Cross replays: musl == glibc == aarch64(qemu), key aa7253c1633e0173ce8dd0474e91cb1bfb29a9f930327a8bc560160215a88fd7 (pinned test_kdf)
