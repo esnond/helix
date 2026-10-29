@@ -200,3 +200,15 @@ adversary:
   (legacy flag cleared), realloc preserves entries, close wipes mk
   and pt.
 No P0/P1. Stage 5 may exit.
+
+## A11 — stage 7 editor pass (inline)
+
+r6_spec written from the stage evidence, not from memory: every claim
+points at a test, a log or a replay table. limitations rewritten to
+v1.0 truth — the two stale entries (cross platform unproven, kch1
+plaintext keychain) are replaced with the closed status and the new
+residuals are named (pair loss, cli -p, decrypt overwrite). security
+claims 8 and 9 carry falsification criteria. README no longer promises
+"quantum resistant" anything. release notes point the owner at the
+acceptance checklist; the v1.0 tag is deliberately not created until
+that checklist passes.

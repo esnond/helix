@@ -38,6 +38,13 @@ Written 2026-10-29.
 | s3 | .dna parser fuzzer | v1.0.3 | done | 20M execs, 0 memory findings (results/fuzz_dna/run_20261029T172553Z.log) | 0e83d46+830e8aa |
 | s4 | .dna v3 external pair + argon2id + A8 P2 overwrite refusal | v1.0.4 | done | rfc 9106 kat 4/4; 14/14 suites; asan+ubsan clean; gate-libm ok; test_hkpair 25/25; cargo 7/7 | 0743211 (core), ae67a27 (gui) |
 | s5 | keychain kch2 (aead, flock, kch1 in-place migration) | v1.0.5 | done | test_keychain 64/64; 14/14 suites; asan+ubsan clean; gate-libm ok; cargo 7/7 | (stage5 commit) |
+| s6 | cross-libc + arm64 replays | v1.0.6 | done | musl == glibc == aarch64(qemu), v2/v3 roundtrips, cross decrypt (results/cross_platform/) | (stage6 commit) |
+| s7 | release v1.0-rc | v1.0-rc | done | r6_spec, limitations, claims 8-9, README, RELEASE_v1.0, manifest; tag v1.0-rc | 48155e8 |
+
+## next
+
+- owner: hands-on acceptance via docs/gui_acceptance.md (29 checks)
+- after acceptance: tag v1.0, push via scripts/push_run.sh (owner types pat)
 | p0.2 | baseline test + manifest | 0 | done | `results/` | — |
 | p0.3 | v5 reference + constitution | 0 | done | `docs/design/` | (phase0 commit) |
 | p0.4 | ROLLBACK.md | 0 | done | `docs/ROLLBACK.md` | (phase0 commit) |
