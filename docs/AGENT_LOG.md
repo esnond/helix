@@ -151,3 +151,28 @@ Findings on the rewritten gui:
   (reveal dialog reads it). No zeroization on the rust side — same class as
   limitation 9 in the c core; named, not hidden.
 No P0/P1. Stage 1 may exit.
+
+## A9 — stage 4 review pass (inline; spawns still blocked)
+
+methodologist: hypotheses h4.1–h4.5 registered with falsification
+criteria, all five supported with recorded evidence (kat bytes,
+refusal rc codes, sanitizer logs). no claim in dna_format.md goes
+beyond the tests; the "not decrypt-anywhere" property is stated
+plainly.
+
+adversary:
+- P2 pair file is the new root secret: .hkpair brute force is bounded
+  by argon2id (64 MiB) or pbkdf2 600k; passphrase entropy is the
+  owner's. accepted residual, documented in dna_format.md.
+- P3 cli -p passphrase is visible in shell history/process list; gui
+  uses a password field. documented for the release notes.
+- P3 losing the .hkpair loses the v3 archives permanently; the gui
+  pair section shows the path so the file gets backed up. release
+  notes item.
+- P3 gui pair export writes <pair>.pub, overwriting an existing .pub
+  silently; same class as the fixed encrypt overwrite, low impact
+  (public material). named, not fixed.
+- checked: encaps uses fresh os entropy per file (no seed reuse),
+  v3-in-v2 header rejected, hkpair_load bounded reads (-2 on short
+  file), pair create refuses overwrite, iterations field aad-bound.
+No P0/P1. Stage 4 may exit.

@@ -85,3 +85,29 @@ mismatch is a format error.
   key rotation story for files encrypted under a generation whose
   key material is lost with the mnemonic (by design: mnemonic is the
   root of trust)
+
+## v3: external kyber pair (kdf_type = 2, stage 4)
+
+header iterations field doubles as the pair-profile selector (aad
+bound): 1 = the pair file is pbkdf2 protected, 2 = argon2id. the rest
+of the header layout is unchanged.
+
+the kyber-768 pair no longer derives from the mnemonic. it lives in a
+.hkpair file (magic `HKP1`, 56 byte header: version, kdf, profile
+u32be, salt[32], nonce[12]) followed by chacha20poly1305(pk || sk)
+under a key derived from the pair passphrase: pbkdf2-hmac-sha512
+(600000) or argon2id (t=3, m=64 MiB, p=4, rfc 9106 profile, verified
+against the rfc 5.3 kat). header aad covers the first 56 bytes.
+
+v3 encrypt: encapsulate to the pair's public key with fresh os entropy
+(32 bytes as the kyber drbg seed), session =
+sha256(kyber_ss || chain_key || "helix-v3-external").
+v3 decrypt: load the pair with its passphrase, decapsulate with the
+stored sk, recompute the session key from the chain key. the
+mnemonic alone returns -4 (authentication failed) — two factors, and
+losing the pair file loses access permanently.
+
+the chain key still requires the mnemonic: v3 is not "decrypt
+anywhere", it is "decrypt only with both factors". kyber keypair
+randomness comes from os entropy per file, so the v2 caveat of
+deterministic encapsulation under a fixed generation does not apply.

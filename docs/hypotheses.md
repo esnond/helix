@@ -136,3 +136,36 @@ a closed item.
 
 Disproof: any |t| >= 4.5 on a secret-dependent op, or a positive control
 the harness fails to detect.
+
+## h4 — .dna v3 external pair + argon2id (stage 4, 2026-10-29)
+
+h4.1. argon2id implementation matches rfc 9106. Prediction: reproduces
+the section 5.3 vector (v 0x13, t=3, m=32, p=4) byte for byte.
+Result: supported — `tests/test_argon2id` 4/4 (0d640df58d78766c...
+0e96b01e659), blake2b rfc 7693 vectors included. Disproof: any kat
+byte mismatch.
+
+h4.2. v3 is two-factor: the mnemonic alone cannot decrypt a v3
+archive. Prediction: decrypt without the pair file (or with a wrong
+pair passphrase) returns -4. Result: supported — test_hkpair
+"v3 refuses mnemonic-only decrypt", "v3 refuses wrong pair
+passphrase", cli check (mnemonic-only rc=5). Disproof: any v3 file
+decrypting without both factors.
+
+h4.3. backward compatibility preserved. Prediction: every v2 file
+decrypts after the upgrade; v1 refused with the same clear error.
+Result: supported — test_backward_compat 43/43, test_dna 13/13 (v2
+roundtrip through the unchanged wrappers), test_hkpair v2 block.
+Disproof: any pre-v3 archive failing after upgrade.
+
+h4.4. encrypt never clobbers an existing output (a8 p2). Prediction:
+dna_encrypt_file[_ex] returns -6 when the output exists, before any
+state change. Result: supported — test_dna "encrypt refuses existing
+output", test_hkpair v2+v3 checks, cli rc=6. Disproof: any overwrite.
+
+h4.5. the new code keeps the parser hard. Prediction: the mutation
+fuzzer over the v3 parser finds no memory errors. Result: supported —
+1M iterations asan+ubsan, 0 findings, 13016 expected rejections
+(results/fuzz_dna/run_20261029T192833Z.log; the 20M v2 baseline:
+results/fuzz_dna/run_20261029T172553Z.log). Disproof: any sanitizer
+report.
