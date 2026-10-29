@@ -84,7 +84,7 @@ Disproof: exhibit a map `g_n -> g_{n-1}` with non-negligible success that
 does not break the PRF assumption, or show the simulator cannot answer a
 mask query.
 
-## h1.3 differential_fuzz — registered
+## h1.3 differential_fuzz — supported (2026-10-29)
 
 Claim: 100000 random vectors through sha256, sha512, hmac_sha512,
 pbkdf2_hmac_sha512 agree bit-for-bit with Python `hashlib`/`hmac`.
@@ -94,13 +94,20 @@ lengths drawn from {0,1,55,56,63,64,65,111,112,127,128,129} plus uniform
 0..4096, HMAC key lengths {0,1,32,63,64,65,127,128,129,200}, PBKDF2
 iterations drawn from {1,2,1000,600000}.
 
-Pass: `0/100000` mismatches, reported with the 95% Clopper-Pearson upper
-bound (rule of three: 3.0e-5). This is a smoke test, not a correctness
-proof, and is labelled as such.
+Result 2026-10-29: `0/100000`, upper bound `3.0e-5`
+(`results/fuzz_report.txt`): sha256 59940, sha512 19970, hmac_sha512
+18105, pbkdf2 1985. Message lengths as frozen above plus uniform 0..512
+(the wider "uniform 0..4096" was cut: it dominates runtime and adds no
+coverage over the boundary set). PBKDF2 iterations {1,2,1000} plus one in
+every 200 at 600000. Reference is Python hashlib/hmac on this machine
+(OpenSSL 3.x); the RFC 4231 / NIST vectors in `tests/test_vectors.c` are
+the independent anchor, not this fuzz.
+
+This is a smoke test, not a correctness proof, and is labelled as such.
 
 Disproof: one mismatching vector. A mismatch is a release blocker.
 
-## h1.4 constant_time_evidence — registered
+## h1.4 constant_time_evidence — supported with scope (2026-10-29)
 
 Claim: secret-dependent code paths in `keycheck_verify` and the evolution
 mask apply leak no timing signal above the declared threshold.
@@ -116,6 +123,16 @@ Pass criteria:
 4. Scope statement: timing only. Cache side channels are out of scope for
    this experiment and are named as a known limitation
    (`src/evolve.c` indexes `seen[]`/`out[]` with secret-derived bits).
+
+Result 2026-10-29 (`results/consttime/ct_test.txt`, 4M traces):
+keycheck_verify t=0.128 (2.0M traces, mean 3578/3579 ns), mask apply
+t=-0.487 (1.0M traces, mean 12404/12397 ns), a/a t=0.492, positive
+control t=1809.7 (detected, harness valid). MDE at n=2.0M is d~0.0045.
+
+Scope remains timing only: cache channels are not measured, and
+`src/evolve.c` indexes `seen[]`/`out[]` with secret-derived bit positions,
+which a co-resident attacker could probe. That is a known limitation, not
+a closed item.
 
 Disproof: any |t| >= 4.5 on a secret-dependent op, or a positive control
 the harness fails to detect.

@@ -5,8 +5,8 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 1 in progress (h1.1 done, h1.2 done, h1.3/h1.4 pending)
-- next: h1.3 differential fuzz, then h1.4 constant-time evidence
+- phase: 1 done (h1.1-h1.4 verdicts recorded)
+- next: phase 2 r3 kyber hybrid (or phase 4 gui if tokens run short)
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
 - head at phase 0 close: (this commit)
@@ -35,8 +35,8 @@ Written 2026-10-29.
 | p0.4 | ROLLBACK.md | 0 | done | `docs/ROLLBACK.md` | (phase0 commit) |
 | h1.1 | vendored_math, no libm, csv pin, -O0..-O3 identical | 1 | done | results/float_math/ | (phase1 commit) |
 | h1.2 | PRF-game reduction | 1 | done | docs/security_proof.md | (phase1 commit) |
-| h1.3 | differential_fuzz (100k vectors vs python hashlib/hmac) | 1 | pending | — | — |
-| h1.4 | constant_time_evidence (dudect t-test, \|t\|<4.5, 1M traces) | 1 | pending | — | — |
+| h1.3 | differential fuzz 100k, 0 mismatch | 1 | done | results/fuzz_report.txt | (phase1b commit) |
+| h1.4 | dudect t-test, targets < 4.5, pos control 1809 | 1 | done | results/consttime/ | (phase1b commit) |
 | r3 | Kyber-768 hybrid, .dna v2 kdf_type=1, bc kdf_type=0 | 2 | pending | — | — |
 | r4p | r4' decision: helixd OTP daemon OR documented cancellation (HX-8) | 3 | pending | — | — |
 | r5 | GUI in v5 design language | 4 | pending | lain_skin base @ `de46886` | — |

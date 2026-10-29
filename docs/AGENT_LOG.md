@@ -52,3 +52,15 @@ run (agents are sequential; the adversary pass runs before the phase-1 gate).
 - **`sscanf("%f")` on the connectome table** was a second unpinned boundary
   (locale + strtod). Replaced with a locale-free decimal parser; the table
   hash is now pinned in `tests/test_vectors.c`.
+
+<!-- A3 -->
+## A3 tooling results (no agent run; evidence for the phase-1 gate)
+
+- h1.3 `tools/fuzz_crypto.py` + `tools/diff_crypto.c`: 0/100000 mismatch,
+  upper bound 3.0e-5 (`results/fuzz_report.txt`).
+- h1.4 `tools/ct_test.c`: keycheck t=0.128, mask t=-0.487, a/a 0.492,
+  positive control t=1809.7 — harness detects a 10x branch, targets stay
+  under 4.5 (`results/consttime/ct_test.txt`). Scope: timing only.
+- First ct_test run had a broken class assignment (all traces in one
+  class, t reported 0.000). Kept in the log because a silent t=0 in a
+  constant-time report is exactly the failure mode to distrust.
