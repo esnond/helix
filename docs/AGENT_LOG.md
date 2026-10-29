@@ -64,3 +64,18 @@ run (agents are sequential; the adversary pass runs before the phase-1 gate).
 - First ct_test run had a broken class assignment (all traces in one
   class, t reported 0.000). Kept in the log because a silent t=0 in a
   constant-time report is exactly the failure mode to distrust.
+
+<!-- A4 -->
+## A4 findings during r3 (inline, before the phase gate)
+
+- **All-zero salt in every v1/v2 file.** `dna_encrypt_file` filled the
+  salt, then `memset(header, 0, ...)` wiped it before writing the magic.
+  Verified on a generated file: bytes 5..36 were zero. Fixed by clearing
+  first, filling after. New files carry a real 32-byte salt.
+- **Test buffer overread.** `tests/test_dna.c` copied the whole file into a
+  512-byte stack buffer; with the 1216-byte v2 header that wrote past it
+  and segfaulted. The corrupt-file buffer is now heap sized.
+- **Kyber cannot raise the mnemonic ceiling.** The keypair is derived from
+  the generation key, so a quantum adversary holding the mnemonic gains
+  nothing. Recorded in docs/r3_spec.md; the release text must not say
+  "quantum-safe".

@@ -46,7 +46,7 @@ int main(void)
     const char* payload =
         "helix dna format test payload, the quick brown worm crawls "
         "over the agar plate and reverses on tap. 0123456789";
-    uint8_t back[512], corrupt[512];
+    uint8_t back[512], *corrupt;
     size_t n;
 
     remove("/tmp/helix_t.dna");
@@ -86,9 +86,13 @@ int main(void)
         fl = (size_t)ftell(fp);
         fseek(fp, 0, SEEK_SET);
         f = malloc(fl);
-        fread(f, 1, fl, fp);
+        corrupt = malloc(fl);
+        if (!f || !corrupt || fread(f, 1, fl, fp) != fl) {
+            printf("FAIL: cannot read test file\n");
+            return 1;
+        }
         fclose(fp);
-        memcpy(corrupt, f, fl < sizeof corrupt ? fl : sizeof corrupt);
+        memcpy(corrupt, f, fl);
         corrupt[0] = 'X';
         wtest("/tmp/helix_t.bad", (const char*)corrupt, fl);
         check(dna_decrypt_file("/tmp/helix_t.bad", "/tmp/helix_t.out", M,
@@ -114,6 +118,8 @@ int main(void)
         check(dna_decrypt_file("/tmp/helix_t.bad", "/tmp/helix_t.out", M,
                                NULL) == -2, "oversized generation refused");
         free(f);
+        free(corrupt);
+        corrupt = NULL;
     }
 
     /* trailing junk appended: aad covers header, mac covers ct only,

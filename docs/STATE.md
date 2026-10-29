@@ -5,8 +5,8 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 1 done (h1.1-h1.4 verdicts recorded)
-- next: phase 2 r3 kyber hybrid (or phase 4 gui if tokens run short)
+- phase: 2 done (r3 kyber-768 hybrid, .dna v2)
+- next: phase 3 r4-prime decision, then phase 4 gui
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
 - head at phase 0 close: (this commit)
@@ -37,7 +37,8 @@ Written 2026-10-29.
 | h1.2 | PRF-game reduction | 1 | done | docs/security_proof.md | (phase1 commit) |
 | h1.3 | differential fuzz 100k, 0 mismatch | 1 | done | results/fuzz_report.txt | (phase1b commit) |
 | h1.4 | dudect t-test, targets < 4.5, pos control 1809 | 1 | done | results/consttime/ | (phase1b commit) |
-| r3 | Kyber-768 hybrid, .dna v2 kdf_type=1, bc kdf_type=0 | 2 | pending | — | — |
+| r3 | kyber-768 hybrid, .dna v2 kdf_type=1, kdf_type=0 decoded | 2 | done | tests/test_kyber 14 ok, docs/r3_spec.md | (r3 commit) |
+| a4.1 | v1 files carried an all-zero salt | 2 | done | fixed in dna.c, verified | (r3 commit) |
 | r4p | r4' decision: helixd OTP daemon OR documented cancellation (HX-8) | 3 | pending | — | — |
 | r5 | GUI in v5 design language | 4 | pending | lain_skin base @ `de46886` | — |
 | rel | release v1.3 + paper docs | 5 | pending | — | — |

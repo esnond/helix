@@ -7,10 +7,16 @@
 /* v2: the derivation path carries its own math (src/vendored_math), so
    key bytes changed from v1. v1 files are refused, not mis-decrypted. */
 #define DNA_VERSION     2
-#define DNA_HEADER_SIZE 128
+#define DNA_HEADER_BASE 128
+/* kyber-768 ciphertext, stored after the classical header and covered by
+   the body aad. re-deriving the keypair from the mnemonic keeps HX-7
+   (decrypt anywhere from the mnemonic alone). */
+#define DNA_KYBER_CT_LEN 1088
+#define DNA_HEADER_SIZE (DNA_HEADER_BASE + DNA_KYBER_CT_LEN)
 #define DNA_SALT_LEN    32
 #define DNA_ESK_LEN     64   /* 48 used: chacha20poly1305(32 B key) + tag */
-#define DNA_KDF_PBKDF2  0
+#define DNA_KDF_PBKDF2  0   /* r2..: chain key only */
+#define DNA_KDF_HYBRID  1   /* r3: chain key || kyber768 ss */
 /* upper bound on a header generation, checked before the chain is
    recomputed: an unauthenticated generation field would otherwise buy
    an attacker unbounded cpu (2^32 sha256 recombinations). */
