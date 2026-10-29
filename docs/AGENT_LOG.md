@@ -133,3 +133,21 @@ Verdicts against head b320457:
 
 required fixes: none blocking stage 1 exit; cancel semantics revisited in
 stage 4 when the job model gains the keypair path.
+
+<!-- A8 -->
+## A8 adversary pass, inline (spawn blocked, provider-side, third time)
+
+Findings on the rewritten gui:
+- P2 overwrite: encrypting "x" writes "x.dna" via fopen "wb" — an existing
+  archive with that name is replaced silently. Mitigation (stage 4, with
+  the v3 work): dna_encrypt_file refuses when the output exists unless
+  --overwrite / dialog confirm. Filed in STATE.
+- P3 symlink: remove_file on a scanned path removes the link, not the
+  target — no privilege gain; no shell interpolation anywhere (no Command),
+  so crafted filenames cannot execute anything.
+- P3 busy race: confirming a dialog while the queue is busy is refused with
+  a journal line; the dialog closes and the user must retry. Acceptable.
+- P3 phrase lifetime: the phrase lives in a rust String for the session
+  (reveal dialog reads it). No zeroization on the rust side — same class as
+  limitation 9 in the c core; named, not hidden.
+No P0/P1. Stage 1 may exit.

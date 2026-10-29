@@ -5,8 +5,9 @@ Written 2026-10-29.
 
 ## Position
 
-- phase: 5 done. v1.3 tagged 040f7b0.
-- next: owner pushes (see push checklist); r6 candidates listed in docs/roadmap_status.md
+- phase: v1.0 run, stage 1 (gui rewrite) done
+- branch: v10-run (anchor tag v1.3-anchor), next: stage 2 secure zeroize
+- open item for stage 4: encrypt must refuse overwriting an existing .dna (A8 P2)
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
 - head at v1.3: 040f7b0 (tag v1.3); tags r2-anchor, r3, r5
@@ -30,6 +31,9 @@ Written 2026-10-29.
 |---|---|---|---|---|---|
 | p0.1 | branch + tag | 0 | done | `r2-anchor` | — |
 | a2.1 | DoS: unauth generation drives 2^32 recombinations | 1 | done | DNA_GEN_MAX=4096 | (phase1 commit) |
+| s1 | gui rewrite from scratch, v5 language, mouse-first | v1.0.1 | done | commit b320457, cargo test 7/7, gui_acceptance.md | b320457 |
+| s1.a7 | cancel semantics: c call not interruptible | v1.0.1 | named | AGENT_LOG A7, checklist item 18 | 72e320e |
+| s1.a8 | encrypt overwrites existing .dna silently | v1.0.1 | open | AGENT_LOG A8 | — |
 | p0.2 | baseline test + manifest | 0 | done | `results/` | — |
 | p0.3 | v5 reference + constitution | 0 | done | `docs/design/` | (phase0 commit) |
 | p0.4 | ROLLBACK.md | 0 | done | `docs/ROLLBACK.md` | (phase0 commit) |
