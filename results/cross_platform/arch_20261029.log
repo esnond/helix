@@ -1,0 +1,8 @@
+# cross-arch replay 20261029T201657Z
+aarch64 (gcc-aarch64-linux-gnu, -static) under qemu-aarch64 vs x86-64 native
+derive key: identical (aa7253c1...)
+v2 roundtrip under qemu: ok
+v3 roundtrip under qemu (external pair, pbkdf2): ok
+x86-64 decrypts arm64-encrypted v2: ok
+aarch64 test_dna under qemu: ok
+verdict: identical

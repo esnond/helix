@@ -1,0 +1,6 @@
+# cross-libc replay 20261029T201657Z
+musl-gcc (musl 1.2.x) vs glibc (gcc, same flags)
+derive -m 12-word-test -s 00112233445566778899aabbccddeeff
+musl  aa7253c1633e0173ce8dd0474e91cb1bfb29a9f930327a8bc560160215a88fd7
+glibc aa7253c1633e0173ce8dd0474e91cb1bfb29a9f930327a8bc560160215a88fd7
+verdict: identical
