@@ -10,6 +10,7 @@ pub struct FileEntry {
     pub name: String,
     pub path: String,
     pub size: u64,
+    pub is_dir: bool,
     pub is_dna: bool,
     pub generation: Option<u32>,
     pub mtime: Option<u64>,
@@ -23,12 +24,12 @@ pub fn scan(dir: &std::path::Path) -> Vec<FileEntry> {
     };
     for e in rd.flatten() {
         let Ok(meta) = e.metadata() else { continue };
-        if !meta.is_file() {
-            continue;
-        }
+        /* directories are navigable, not skipped: without them the panel
+           showed an empty list whenever the folder held only folders */
+        let is_dir = meta.is_dir();
         let name = e.file_name().to_string_lossy().into_owned();
         let path = e.path().to_string_lossy().into_owned();
-        let is_dna = name.ends_with(".dna");
+        let is_dna = !is_dir && name.ends_with(".dna");
         let generation = if is_dna { parse_generation(&path) } else { None };
         let mtime = std::fs::metadata(&path)
             .and_then(|m| m.modified())
@@ -39,12 +40,17 @@ pub fn scan(dir: &std::path::Path) -> Vec<FileEntry> {
             name,
             path,
             size: meta.len(),
+            is_dir,
             is_dna,
             generation,
             mtime,
         });
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.cmp(&b.name),
+    });
     out
 }
 
@@ -78,16 +84,24 @@ fn row_text(
 ) {
     let color = if sel {
         colors::theme().ink
+    } else if f.is_dir {
+        colors::theme().ink2
     } else if f.is_dna {
         colors::theme().accent2
     } else {
         colors::text_dim()
     };
+    /* a trailing slash marks a navigable row, nothing else does */
+    let name = if f.is_dir {
+        format!("{}/", f.name)
+    } else {
+        f.name.clone()
+    };
     let font = egui::FontId::monospace(13.0);
     painter.text(
         pos2(rect.left() + COL_NAME, rect.center().y),
         Align2::LEFT_CENTER,
-        &f.name,
+        &name,
         font.clone(),
         color,
     );
@@ -98,7 +112,7 @@ fn row_text(
         font.clone(),
         color,
     );
-    let gen = if !f.is_dna {
+    let gen = if f.is_dir || !f.is_dna {
         "-".to_string()
     } else if gen_known {
         f.generation.map(|g| g.to_string()).unwrap_or_else(|| "?".into())
@@ -174,4 +188,25 @@ pub fn show(
             row_text(&painter, rect, f, sel, true);
         }
     });
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /* a folder holding only subdirectories used to render as "no files":
+       scan skipped everything that was not a regular file */
+    #[test]
+    fn scan_sees_directories_first() {
+        let root = std::env::temp_dir().join(format!("helix_scan_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("beta")).unwrap();
+        std::fs::create_dir_all(root.join("alpha")).unwrap();
+        std::fs::write(root.join("x.txt"), b"hi").unwrap();
+        let entries = scan(&root);
+        assert_eq!(entries.len(), 3, "two dirs and one file");
+        assert!(entries[0].is_dir && entries[1].is_dir, "dirs sort first");
+        assert_eq!(entries[0].name, "alpha");
+        assert!(!entries[2].is_dir);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

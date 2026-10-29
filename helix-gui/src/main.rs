@@ -109,6 +109,42 @@ impl App {
 
     fn rescan(&mut self) {
         self.files = file_manager::scan(std::path::Path::new(&self.cwd));
+        if self.selected >= self.files.len() {
+            self.selected = self.files.len().saturating_sub(1);
+        }
+    }
+
+    fn nav_into(&mut self, path: &str) {
+        self.cwd = path.to_string();
+        self.selected = 0;
+        self.rescan();
+    }
+
+    fn nav_up(&mut self) {
+        let parent = std::path::Path::new(&self.cwd)
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned());
+        if let Some(p) = parent {
+            self.cwd = p;
+            self.selected = 0;
+            self.rescan();
+        }
+    }
+
+    /// open the selected row: a directory is entered, a file opens the
+    /// matching dialog
+    fn activate(&mut self, path: &str, is_dir: bool, is_dna: bool) {
+        if is_dir {
+            self.nav_into(path);
+            return;
+        }
+        if is_dna {
+            self.open_dialog(Mode::Decrypt(path.to_string()));
+        } else {
+            self.dialog.target_gen =
+                self.keys.list.as_ref().map_or(0, |l| l.current_gen);
+            self.open_dialog(Mode::Encrypt(path.to_string()));
+        }
     }
 
     fn open_dialog(&mut self, mode: Mode) {
@@ -228,15 +264,20 @@ impl eframe::App for App {
         // keyboard, only when no text field owns the keys
         let keyboard_free = !ctx.wants_keyboard_input();
         if keyboard_free && self.dialog.mode.is_none() {
-            let (up, down, act, enc, del) = ctx.input(|i| {
+            let (up, down, act, enc, del, left, right) = ctx.input(|i| {
                 (
-                    i.key_pressed(egui::Key::K),
-                    i.key_pressed(egui::Key::J),
-                    i.key_pressed(egui::Key::Enter),
+                    i.key_pressed(egui::Key::K) || i.key_pressed(egui::Key::ArrowDown),
+                    i.key_pressed(egui::Key::J) || i.key_pressed(egui::Key::ArrowUp),
+                    i.key_pressed(egui::Key::Enter) || i.key_pressed(egui::Key::L),
                     i.key_pressed(egui::Key::E),
                     i.key_pressed(egui::Key::Delete),
+                    i.key_pressed(egui::Key::H) || i.key_pressed(egui::Key::ArrowLeft),
+                    i.key_pressed(egui::Key::ArrowRight),
                 )
             });
+            if left {
+                self.nav_up();
+            }
             if down && self.selected + 1 < self.files.len() {
                 self.selected += 1;
             }
@@ -244,72 +285,25 @@ impl eframe::App for App {
                 self.selected -= 1;
             }
             if let Some(f) = self.files.get(self.selected) {
-                let path = f.path.clone();
-                if enc {
+                let (path, is_dir, is_dna) = (f.path.clone(), f.is_dir, f.is_dna);
+                if right && is_dir {
+                    /* l/right enters a folder; h/left already went up */
+                    self.nav_into(&path);
+                } else if left || right {
+                    /* nothing to do for a file row */
+                } else if enc && !is_dir {
                     self.dialog.target_gen =
                         self.keys.list.as_ref().map_or(0, |l| l.current_gen);
                     self.open_dialog(Mode::Encrypt(path));
-                } else if del {
+                } else if del && !is_dir {
                     self.open_dialog(Mode::Delete(path));
                 } else if act {
-                    if f.is_dna {
-                        self.open_dialog(Mode::Decrypt(path));
-                    } else {
-                        self.dialog.target_gen =
-                            self.keys.list.as_ref().map_or(0, |l| l.current_gen);
-                        self.open_dialog(Mode::Encrypt(path));
-                    }
+                    self.activate(&path, is_dir, is_dna);
                 }
             }
         }
 
 
-
-        // quit: ctrl+q, because a borderless fullscreen window has no
-        // title bar to click. egui 0.23 has no viewport-close command, so
-        // this exits the process; the settings were saved when changed.
-        if keyboard_free_conv(ctx) && ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Q)) {
-            self.settings.save();
-            std::process::exit(0);
-        }
-
-        // keyboard, only when no text field owns the keys
-        let keyboard_free = !ctx.wants_keyboard_input();
-        if keyboard_free && self.dialog.mode.is_none() {
-            let (up, down, act, enc, del) = ctx.input(|i| {
-                (
-                    i.key_pressed(egui::Key::K),
-                    i.key_pressed(egui::Key::J),
-                    i.key_pressed(egui::Key::Enter),
-                    i.key_pressed(egui::Key::E),
-                    i.key_pressed(egui::Key::Delete),
-                )
-            });
-            if down && self.selected + 1 < self.files.len() {
-                self.selected += 1;
-            }
-            if up && self.selected > 0 {
-                self.selected -= 1;
-            }
-            if let Some(f) = self.files.get(self.selected) {
-                let path = f.path.clone();
-                if enc {
-                    self.dialog.target_gen =
-                        self.keys.list.as_ref().map_or(0, |l| l.current_gen);
-                    self.open_dialog(Mode::Encrypt(path));
-                } else if del {
-                    self.open_dialog(Mode::Delete(path));
-                } else if act {
-                    if f.is_dna {
-                        self.open_dialog(Mode::Decrypt(path));
-                    } else {
-                        self.dialog.target_gen =
-                            self.keys.list.as_ref().map_or(0, |l| l.current_gen);
-                        self.open_dialog(Mode::Encrypt(path));
-                    }
-                }
-            }
-        }
 
         // --- v5 layout: files take 62fr, the keys column is a fixed 340 px
         // and floats lower than the file list ---
@@ -379,7 +373,26 @@ impl eframe::App for App {
             .frame(egui::Frame::central_panel(&ctx.style()).fill(style::colors::theme().bg))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
+                    /* the path is the affordance: click a segment to go
+                       back up, so navigation does not need the keyboard */
+                    let mut go_up = false;
                     ui.label(egui::RichText::new(format!("> {}", i18n::s().files)).color(colors::theme().accent));
+                    ui.add_space(10.0);
+                    if ui
+                        .small_button("..")
+                        .on_hover_text("up one level (h, left)")
+                        .clicked()
+                    {
+                        go_up = true;
+                    }
+                    ui.label(
+                        egui::RichText::new(&self.cwd)
+                            .font(crate::style::fonts::font_id(12.0))
+                            .color(colors::theme().ink2),
+                    );
+                    if go_up {
+                        self.nav_up();
+                    }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button(i18n::s().decrypt).clicked() {
                             if let Some(f) = self.files.get(self.selected) {
@@ -391,7 +404,7 @@ impl eframe::App for App {
                         }
                         if ui.button(i18n::s().encrypt).clicked() {
                             if let Some(f) = self.files.get(self.selected) {
-                                if !f.is_dna {
+                                if !f.is_dna && !f.is_dir {
                                     let p = f.path.clone();
                                     self.dialog.target_gen =
                                         self.keys.list.as_ref().map_or(0, |l| l.current_gen);
