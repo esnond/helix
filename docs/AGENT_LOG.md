@@ -89,3 +89,24 @@ grounds — no consumer after HX-7, attack surface, the seam rule (there is
 no simulator artefact to hand over), and the absence of a supervision test
 harness. A falsifier is written down so the decision can be reopened on
 evidence rather than on mood.
+
+<!-- A6 -->
+## A6 v1.0 run, stage 1 kickoff
+
+architect spawn blocked provider-side ("unusual activity"), same class as
+the 2026-10-28 outage. Per R1 the stage continues without the agent; the
+skeleton design is done inline and recorded here:
+
+- files: main, app, prefs, theme, fonts, i18n, jobs, panel_files,
+  panel_keys, panel_jobs, bar_status, dialog, sound/{mod,engine,sources};
+  core/helix_wrapper.rs and gui_api.c survive unchanged (the one unsafe
+  boundary stays the FFI shim).
+- jobs: one worker thread per job, cancel = flag + drop of a late result
+  (the C call is uninterruptible, ~3.4 s); events via mpsc; queue shows
+  reason, indeterminate hairline, cancel.
+- sound: engine thread owns the cpal stream, commands over mpsc into a
+  render ring; procedural metal-box IR, wet 0.13, one-pole lowpass 14k,
+  soft compressor; 6 sources per constitution §8; cpal init failure
+  degrades to a silent backend with a visible "audio unavailable" note.
+- dialog state machine: Idle -> Opened{Seed|Encrypt|Decrypt|Delete} ->
+  Busy -> Closed, error and glitch ride along.
