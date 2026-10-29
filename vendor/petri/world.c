@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <string.h>
 #include "world.h"
 #include "config.h"
@@ -47,13 +48,13 @@ void world_init(world_t* w, rng_t* rng, int enable_food, int enable_thermo)
         for (x = 0; x < WORLD_W; x++) {
             float cx = ((float)x + 0.5f) * WORLD_CELL_MM;
             float cy = ((float)y + 0.5f) * WORLD_CELL_MM;
-            float da = hypotf(cx - ODOR_A_X_MM, cy - ODOR_A_Y_MM);
-            float db = hypotf(cx - ODOR_B_X_MM, cy - ODOR_B_Y_MM);
+            float da = vm_hypotf(cx - ODOR_A_X_MM, cy - ODOR_A_Y_MM);
+            float db = vm_hypotf(cx - ODOR_B_X_MM, cy - ODOR_B_Y_MM);
             /* steady state gaussian around each source, diffusion length l */
-            w->odor_a[y][x] = 10.0f * expf(-da * da / (2.0f * 6.0f * 6.0f));
-            w->odor_b[y][x] = 10.0f * expf(-db * db / (2.0f * 6.0f * 6.0f));
+            w->odor_a[y][x] = 10.0f * vm_expf(-da * da / (2.0f * 6.0f * 6.0f));
+            w->odor_b[y][x] = 10.0f * vm_expf(-db * db / (2.0f * 6.0f * 6.0f));
             if (enable_food) {
-                float df = hypotf(cx - FOOD_CX_MM, cy - FOOD_CY_MM);
+                float df = vm_hypotf(cx - FOOD_CX_MM, cy - FOOD_CY_MM);
                 if (df < FOOD_R_MM)
                     w->food[y][x] = 1.0f - 0.6f * (df / FOOD_R_MM);
             }

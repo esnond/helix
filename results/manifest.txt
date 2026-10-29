@@ -1,8 +1,8 @@
-# Generated: 2026-10-29T04:41:21Z
+# Generated: 2026-10-29T05:28:00Z
 # Binary: ./helix
-# Binary SHA256: ba25ad412c11b113feb2039c20c807b76c5042979bacc47be4a07f56532e941c
+# Binary SHA256: d0ce3725f7b2cac1416b95e842c76cdb160400cc35423b37212c4f49b01520b3
 # Compiler: cc (Debian 14.2.0-19) 14.2.0
-# Flags: baseline
+# Flags: phase1 h1.1 vendored math
 # Seeds: unspecified
 # Duration: unspecified
 results/r1_evolution_chain.csv: ada14896f0a1c5a363b2370ec93a7ab510d57677c99edbbf6868d4817ab06d13

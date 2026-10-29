@@ -4,11 +4,17 @@
 #include <stdint.h>
 
 #define DNA_MAGIC       "DNA1"
-#define DNA_VERSION     1
+/* v2: the derivation path carries its own math (src/vendored_math), so
+   key bytes changed from v1. v1 files are refused, not mis-decrypted. */
+#define DNA_VERSION     2
 #define DNA_HEADER_SIZE 128
 #define DNA_SALT_LEN    32
 #define DNA_ESK_LEN     64   /* 48 used: chacha20poly1305(32 B key) + tag */
 #define DNA_KDF_PBKDF2  0
+/* upper bound on a header generation, checked before the chain is
+   recomputed: an unauthenticated generation field would otherwise buy
+   an attacker unbounded cpu (2^32 sha256 recombinations). */
+#define DNA_GEN_MAX     4096
 #define DNA_CIPHER_CHACHA 0
 
 /* .dna file: header(128) || aead_ciphertext(meta || file data) || tag(16).

@@ -101,10 +101,18 @@ int main(void)
                                NULL) == -4, "corrupt body rejected");
         /* corrupt one header byte inside the aad: mac failure */
         memcpy(corrupt, f, fl);
-        corrupt[41] ^= 0x01;   /* generation field */
+        corrupt[6] ^= 0x01;   /* salt byte, inside the aad and nonce */
         wtest("/tmp/helix_t.bad", (const char*)corrupt, fl);
         check(dna_decrypt_file("/tmp/helix_t.bad", "/tmp/helix_t.out", M,
                                NULL) == -4, "header tamper rejected");
+        /* generation outside DNA_GEN_MAX must be refused before the
+           chain recompute, otherwise the unauthenticated field buys an
+           attacker up to 2^32 sha256 recombinations */
+        memcpy(corrupt, f, fl);
+        corrupt[41] ^= 0x01;   /* generation field, now > 4096 */
+        wtest("/tmp/helix_t.bad", (const char*)corrupt, fl);
+        check(dna_decrypt_file("/tmp/helix_t.bad", "/tmp/helix_t.out", M,
+                               NULL) == -2, "oversized generation refused");
         free(f);
     }
 

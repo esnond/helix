@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <stdio.h>
 #include <string.h>
 #include "body.h"
@@ -76,7 +77,7 @@ void body_build_motor_map(body_t* b, const connectome_t* c, nervous_t* ns)
             for (ii = 0; ii < b->mm.n_mn; ii++) {
                 if (b->mm.mclass[ii] != b->mm.mclass[mi]) continue;
                 float dp = b->mm.pos[mi] - b->mm.pos[ii];
-                d += expf(-(dp * dp) / (2.0f * NMJ_SIGMA_SEG * NMJ_SIGMA_SEG));
+                d += vm_expf(-(dp * dp) / (2.0f * NMJ_SIGMA_SEG * NMJ_SIGMA_SEG));
             }
             dens[mi] = d;
             mean_dens[b->mm.mclass[mi]] += d;
@@ -96,8 +97,8 @@ static void build_shape(body_t* b, float head_ang, float* x, float* y)
     x[0] = 0.0f;
     y[0] = 0.0f;
     for (i = 0; i < N_SEG; i++) {
-        float nx = x[i] + DS_MM * cosf(th);
-        float ny = y[i] + DS_MM * sinf(th);
+        float nx = x[i] + DS_MM * vm_cosf(th);
+        float ny = y[i] + DS_MM * vm_sinf(th);
         b->theta[i] = th;
         th += b->k[i] * DS_MM;
         x[i + 1] = nx;
@@ -184,7 +185,7 @@ static void force_balance(body_t* b, const float* lx, const float* ly, float dt)
     const float c_n = DRAG_T * DRAG_RATIO;
     /* previous shape carried forward into the frame the body has rotated
        into, the difference is then pure bending */
-    float c = cosf(b->last_drot), s = sinf(b->last_drot);
+    float c = vm_cosf(b->last_drot), s = vm_sinf(b->last_drot);
     float qx[N_SEG + 1], qy[N_SEG + 1];
     int j;
 
@@ -196,7 +197,7 @@ static void force_balance(body_t* b, const float* lx, const float* ly, float dt)
     for (j = 0; j < N_SEG; j++) {
         float rx = 0.5f * (lx[j] + lx[j + 1]);
         float ry = 0.5f * (ly[j] + ly[j + 1]);
-        float ct = cosf(b->theta[j]), st = sinf(b->theta[j]);
+        float ct = vm_cosf(b->theta[j]), st = vm_sinf(b->theta[j]);
         /* k = c_t tt^t + c_n nn^t */
         float kxx = c_t * ct * ct + c_n * st * st;
         float kyy = c_t * st * st + c_n * ct * ct;
@@ -221,7 +222,7 @@ static void force_balance(body_t* b, const float* lx, const float* ly, float dt)
     det = a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1])
         - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0])
         + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
-    if (fabsf(det) < 1e-7f) {
+    if (vm_fabsf(det) < 1e-7f) {
         b->vx = b->vy = b->omega = 0.0f;
         return;
     }
@@ -264,7 +265,7 @@ void body_step(body_t* b, nervous_t* ns, float nmj_gain, float dt)
         int cls = b->mm.mclass[m];
         for (i = 0; i < N_SEG; i++) {
             float d = (float)i - mn_seg;
-            float wgt = nmj_gain * expf(-(d * d) / (2.0f * NMJ_SIGMA_SEG * NMJ_SIGMA_SEG));
+            float wgt = nmj_gain * vm_expf(-(d * d) / (2.0f * NMJ_SIGMA_SEG * NMJ_SIGMA_SEG));
             /* d class inhibits the opposite side, preventing co contraction spasm,
                per motor neuron weights are normalized in the motor map */
             if (cls == MC_DB || cls == MC_DA) targ_d[i] += wgt * a * b->mm.wscale[m];
@@ -279,8 +280,8 @@ void body_step(body_t* b, nervous_t* ns, float nmj_gain, float dt)
         if (alpha > 1.0f) alpha = 1.0f;
         /* work proxy: how hard the drive moved this step, integrated
            over the run, the cost side of a speed per cost fitness */
-        b->energy_cost += (fabsf(targ_d[i] - b->m_d[i]) +
-                           fabsf(targ_v[i] - b->m_v[i])) * dt;
+        b->energy_cost += (vm_fabsf(targ_d[i] - b->m_d[i]) +
+                           vm_fabsf(targ_v[i] - b->m_v[i])) * dt;
         b->m_d[i] += alpha * (targ_d[i] - b->m_d[i]);
         b->m_v[i] += alpha * (targ_v[i] - b->m_v[i]);
         if (b->m_d[i] < 0.0f) b->m_d[i] = 0.0f;
@@ -355,14 +356,14 @@ void body_step(body_t* b, nervous_t* ns, float nmj_gain, float dt)
     b->x[0] = b->head_x;
     b->y[0] = b->head_y;
     for (i = 0; i < N_SEG; i++) {
-        b->x[i + 1] = b->x[i] + DS_MM * cosf(b->theta[i]);
-        b->y[i + 1] = b->y[i] + DS_MM * sinf(b->theta[i]);
+        b->x[i + 1] = b->x[i] + DS_MM * vm_cosf(b->theta[i]);
+        b->y[i + 1] = b->y[i] + DS_MM * vm_sinf(b->theta[i]);
     }
 
     /* wall contact flags are owned by the world, see world_step */
 
     /* the nose points against the segment chain, forward crawl is positive */
-    b->speed = -(b->vx * cosf(b->head_angle) + b->vy * sinf(b->head_angle)) * 1000.0f;
+    b->speed = -(b->vx * vm_cosf(b->head_angle) + b->vy * vm_sinf(b->head_angle)) * 1000.0f;
 
     /* head bend zero crossings give the undulation frequency */
     {
@@ -388,6 +389,6 @@ void body_init(body_t* b)
     b->head_angle = 0.0f;
     /* tiny seed asymmetry, neural noise amplifies it into the wave */
     for (i = 0; i < N_SEG; i++)
-        b->k[i] = 0.25f * cosf((float)i * 0.5f);
+        b->k[i] = 0.25f * vm_cosf((float)i * 0.5f);
     b->k_sign = 0;
 }

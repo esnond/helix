@@ -115,11 +115,37 @@ static void test_pbkdf2(void)
     }
 }
 
+/* the derivation path consumes this table; a silent edit to it would
+   change every key with no diff in C. h1.1 pins its hash here and in
+   results/manifest.txt. */
+static void test_connectome_pin(void)
+{
+    static const char* const path = "vendor/petri/data/herm_302.csv";
+    static const char* const want =
+        "97909f25ee635469679633fdaab0cbaa71ab70fad87af3e4a2df584760bc8bf4";
+    uint8_t buf[4096], digest[SHA256_DIGEST];
+    char got[2 * SHA256_DIGEST + 1];
+    sha256_ctx c;
+    size_t n;
+    FILE* f = fopen(path, "rb");
+    check(f != NULL, "connectome table present");
+    if (!f)
+        return;
+    sha256_init(&c);
+    while ((n = fread(buf, 1, sizeof buf, f)) > 0)
+        sha256_update(&c, buf, n);
+    fclose(f);
+    sha256_final(&c, digest);
+    hex_encode(digest, sizeof digest, got);
+    check(strcmp(got, want) == 0, "connectome table hash pinned");
+}
+
 int main(void)
 {
     test_sha();
     test_hmac();
     test_pbkdf2();
+    test_connectome_pin();
     printf("test_vectors: %d ok, %d failed\n", g_ok, g_fail);
     return g_fail != 0;
 }

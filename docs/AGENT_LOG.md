@@ -30,3 +30,25 @@ Action taken: `docs/hypotheses.md` rewritten to carry the revised h1.1-h1.4
 with explicit thresholds and disproof experiments.
 
 Files: `docs/hypotheses.md`.
+
+<!-- A2 -->
+## A2 inline findings during h1.1 (adversary review deferred to phase gate)
+
+Recorded here because they were found while implementing, not by an agent
+run (agents are sequential; the adversary pass runs before the phase-1 gate).
+
+- **DoS on unauthenticated generation field.** `dna_decrypt_file` parsed the
+  header generation and immediately recomputed the chain before the tag was
+  checked. Flipping bit 0 of header byte 41 turns generation 5 into
+  16777221, and the recompute loop runs 16.7M sha256 recombinations in the
+  test suite. Fix: `DNA_GEN_MAX` (4096) checked before the chain, return -2.
+  Test updated: the old "header tamper" case relied on that slow path; it
+  now flips a salt byte (true MAC failure, -4) and a separate case asserts
+  the oversized generation is refused (-2).
+- **Format bump.** Replacing libm changes key bits by design (h1.1), so
+  `DNA_VERSION` is 2 and v1 files are refused with -2 instead of being
+  decrypted with the wrong key. Pinned r2 key in test_kdf kept in a
+  comment for the record.
+- **`sscanf("%f")` on the connectome table** was a second unpinned boundary
+  (locale + strtod). Replaced with a locale-free decimal parser; the table
+  hash is now pinned in `tests/test_vectors.c`.

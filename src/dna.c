@@ -212,6 +212,10 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
         free(file);
         return -2;
     }
+    if (info.generation > DNA_GEN_MAX) {
+        free(file);
+        return -2;
+    }
     if (helix_generation_key(mnemonic, keychain_path, info.generation,
                              gen_key) != 0) {
         free(file);

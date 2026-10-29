@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -189,7 +190,7 @@ static double evaluate_genome_impl(const genome_t* g, int duration_s,
     {
         float dx = eval_sim.body.x[0] - EVAL_START_X_MM;
         float dy = eval_sim.body.y[0] - EVAL_START_Y_MM;
-        net = hypotf(dx, dy);
+        net = vm_hypotf(dx, dy);
     }
     if (g_cost_mode) {
         double cost = (double)eval_sim.metrics.energy_cost + 1.0;
@@ -293,7 +294,7 @@ static double evaluate_inverse(const genome_t* g, int duration_s,
         for (i = 0; i < cap; i++) {
             float dx = inv_trx[i] - inv_wpx[k];
             float dy = inv_try[i] - inv_wpy[k];
-            float d = sqrtf(dx * dx + dy * dy);
+            float d = vm_sqrtf(dx * dx + dy * dy);
             if (d < best) best = d;
         }
         err += best;

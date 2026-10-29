@@ -1,0 +1,5 @@
+expf   max ulp error 1 (bound 1) pass
+logf   max ulp error 0 (bound 1) pass
+sqrtf  max ulp error 0 (bound 0) pass
+sinf   max ulp error 0 (bound 1) pass
+cosf   max ulp error 0 (bound 1) pass

@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include <stdio.h>
 #include <string.h>
 #include "metrics.h"
@@ -37,7 +38,7 @@ void metrics_step(metrics_t* mt, const body_t* b, const nervous_t* ns,
     } else {
         head_dx = b->x[0] - mt->prev_head_x;
         head_dy = b->y[0] - mt->prev_head_y;
-        head_disp = hypotf(head_dx, head_dy);
+        head_disp = vm_hypotf(head_dx, head_dy);
         mt->odometer_mm += head_disp;
         mt->prev_head_x = b->x[0];
         mt->prev_head_y = b->y[0];
@@ -79,10 +80,10 @@ void metrics_step(metrics_t* mt, const body_t* b, const nervous_t* ns,
             float kmax = 0.0f;
             int i;
             for (i = 0; i < N_SEG; i++) {
-                if (fabsf(b->k[i]) > kmax)
-                    kmax = fabsf(b->k[i]);
+                if (vm_fabsf(b->k[i]) > kmax)
+                    kmax = vm_fabsf(b->k[i]);
             }
-            if (fabsf(mt->heading_acc) > 2.6f && kmax > 7.0f)
+            if (vm_fabsf(mt->heading_acc) > 2.6f && kmax > 7.0f)
                 mt->n_omega++;
             mt->heading_acc = 0.0f;
             mt->omega_window_t = 0.0f;
@@ -90,8 +91,8 @@ void metrics_step(metrics_t* mt, const body_t* b, const nervous_t* ns,
     }
 
     /* chemotaxis index accumulators, time near each source */
-    da = hypotf(b->x[0] - ODOR_A_X_MM, b->y[0] - ODOR_A_Y_MM);
-    dctrl = hypotf(b->x[0] - ODOR_B_X_MM, b->y[0] - ODOR_B_Y_MM);
+    da = vm_hypotf(b->x[0] - ODOR_A_X_MM, b->y[0] - ODOR_A_Y_MM);
+    dctrl = vm_hypotf(b->x[0] - ODOR_B_X_MM, b->y[0] - ODOR_B_Y_MM);
     if (da < ZONE_R_MM)
         mt->t_near_odor += dt_s;
     if (dctrl < ZONE_R_MM)

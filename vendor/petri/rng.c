@@ -1,4 +1,5 @@
 #include <math.h>
+#include "vmath.h"
 #include "rng.h"
 
 void rng_seed(rng_t* r, uint64_t seed)
@@ -41,8 +42,8 @@ float rng_normal(rng_t* r)
         u1 = rng_uniform(r);
     } while (u1 <= 1e-7f);
     u2 = rng_uniform(r) * 6.283185307f;
-    amp = sqrtf(-2.0f * logf(u1));
-    r->normal_cache = amp * sinf(u2);
+    amp = vm_sqrtf(-2.0f * vm_logf(u1));
+    r->normal_cache = amp * vm_sinf(u2);
     r->normal_have = 1;
-    return amp * cosf(u2);
+    return amp * vm_cosf(u2);
 }

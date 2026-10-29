@@ -15,9 +15,12 @@
 /* herm_302.csv: 302 neurons plus 146 muscle/passive targets = 448
    unique nodes, all driven as cells by the engine */
 #define EXPECTED_CELLS 448
-/* frozen r0 derivation, vector 0 mnemonic + SALT_A; any change here is
-   an r0 breaking change and must bump the format version */
-#define EXPECTED_KEY "4b6d7dcd2c168ad86b7274f2bf5cb902141d9983493d6d1267bff08526a9f8b2"
+/* frozen derivation, vector 0 mnemonic + SALT_A; any change here is
+   a breaking change and must bump the format version. this value is
+   the r3 one: libm replaced by src/vendored_math (h1.1), which changed
+   the key bits by design and bumped DNA_VERSION to 2. the r2 value was
+   4b6d7dcd2c168ad86b7274f2bf5cb902141d9983493d6d1267bff08526a9f8b2. */
+#define EXPECTED_KEY "aa7253c1633e0173ce8dd0474e91cb1bfb29a9f930327a8bc560160215a88fd7"
 
 static int g_fail;
 static int g_ok;

@@ -332,6 +332,89 @@ static void str_upper(char* s)
         *s = (char)toupper((unsigned char)*s);
 }
 
+/* split s in place on ',' into at most max fields, trimming trailing
+   blanks and CR. returns the number of fields found. */
+static int split_fields(char* s, char** f, int max)
+{
+    int n = 0;
+    char* p = s;
+    while (n < max && p) {
+        char* comma = strchr(p, ',');
+        char* end;
+        if (comma)
+            *comma = '\0';
+        end = p + strlen(p);
+        while (end > p &&
+               (end[-1] == '\r' || end[-1] == '\n' || end[-1] == ' ' ||
+                end[-1] == '\t'))
+            *--end = '\0';
+        f[n++] = p;
+        p = comma ? comma + 1 : NULL;
+    }
+    return n;
+}
+
+/* locale independent decimal parse: [+-]digits[.digits][e[+-]digits].
+   sscanf("%f") consults the locale and the libc strtod, which is a second
+   unpinned boundary on the key path (docs/hypotheses.md h1.1). */
+static int parse_dec(const char* s, float* out)
+{
+    double v = 0.0, scale = 1.0;
+    int neg = 0, digits = 0, eneg = 0, ex = 0;
+    if (*s == '+' || *s == '-') {
+        neg = (*s == '-');
+        s++;
+    }
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10.0 + (double)(*s - '0');
+        s++;
+        digits++;
+    }
+    if (*s == '.') {
+        s++;
+        while (*s >= '0' && *s <= '9') {
+            scale *= 0.1;
+            v += (double)(*s - '0') * scale;
+            s++;
+            digits++;
+        }
+    }
+    if (digits == 0)
+        return -1;
+    if (*s == 'e' || *s == 'E') {
+        s++;
+        if (*s == '+' || *s == '-') {
+            eneg = (*s == '-');
+            s++;
+        }
+        while (*s >= '0' && *s <= '9') {
+            if (ex < 400)
+                ex = ex * 10 + (*s - '0');
+            s++;
+        }
+        while (ex-- > 0)
+            v = eneg ? v * 0.1 : v * 10.0;
+    }
+    if (*s != '\0')
+        return -1;
+    *out = (float)(neg ? -v : v);
+    return 0;
+}
+
+static int parse_uint(const char* s, int* out)
+{
+    int v = 0, digits = 0;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10 + (*s - '0');
+        s++;
+        digits++;
+    }
+    if (digits == 0 || *s != '\0')
+        return -1;
+    *out = v;
+    return 0;
+}
+
 int conn_load_csv(connectome_t* c, nervous_t* ns, const char* path)
 {
     FILE* f = fopen(path, "r");
@@ -348,18 +431,24 @@ int conn_load_csv(connectome_t* c, nervous_t* ns, const char* path)
     while (fgets(line, sizeof(line), f)) {
         char src[NEURON_NAME_MAX] = {0}, dst[NEURON_NAME_MAX] = {0};
         char typ[16] = {0};
+        char* fld[5];
         float w = 1.0f;
         int sign = 0, nf;
-        char* p = line;
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         /* optional header */
         if (strncmp(line, "Source", 6) == 0 || strncmp(line, "source", 6) == 0)
             continue;
-        nf = sscanf(p, "%11[^,],%11[^,],%15[^,],%f,%d",
-                    src, dst, typ, &w, &sign);
+        nf = split_fields(line, fld, 5);
         if (nf < 4)
             continue;
+        snprintf(src, sizeof(src), "%s", fld[0]);
+        snprintf(dst, sizeof(dst), "%s", fld[1]);
+        snprintf(typ, sizeof(typ), "%s", fld[2]);
+        if (parse_dec(fld[3], &w) != 0)
+            continue;
+        if (nf >= 5)
+            (void)parse_uint(fld[4], &sign);   /* junk keeps sign at 0 */
         str_upper(src);
         str_upper(dst);
         str_upper(typ);
