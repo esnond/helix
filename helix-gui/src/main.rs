@@ -4,6 +4,7 @@
 #[path = "core/helix_wrapper.rs"]
 mod wrapper;
 
+mod i18n;
 mod style;
 mod ui;
 
@@ -15,7 +16,8 @@ use ui::encryption_dialog::{Dialog, Mode};
 use ui::file_manager::{self, FileEntry};
 use ui::key_manager::KeyState;
 use ui::settings::Settings;
-use style::effects::{Glitch, TextPrint, CursorBlink};
+use style::colors;
+use style::effects::{CursorBlink, Glitch, TextPrint};
 
 enum Job {
     Encrypt { inp: String, out: String, m: String, gen: u32 },
@@ -55,7 +57,7 @@ impl Default for App {
                 .unwrap_or_default(),
             files: Vec::new(),
             selected: 0,
-            settings: Settings::default(),
+            settings: Settings::load(),
             keys: KeyState { list: None, busy: false },
             dialog: Dialog::new(),
             mnemonic: None,
@@ -154,6 +156,11 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         style::apply(ctx);
+        self.settings.apply();
+        // motion: the constitution bans scanlines and decorative motion,
+        // so only the cursor and an explicit glitch survive, and both are
+        // off when the calm switch or the desktop hint says so
+        let motion = self.settings.motion && !self.settings.prefers_reduced;
         let now = ctx.input(|i| i.time);
 
         // poll the worker
@@ -182,7 +189,9 @@ impl eframe::App for App {
 
         // update effects
         let now = ctx.input(|i| i.time);
-        self.cursor_blink.update(ctx);
+        if motion {
+            self.cursor_blink.update(ctx);
+        }
         if self.focus_changed {
             self.text_print.trigger(now);
             self.focus_changed = false;
@@ -246,19 +255,7 @@ impl eframe::App for App {
             }
         }
 
-        // effects layer - order matters for visual stacking
-        if self.settings.scanlines {
-            style::effects::scanlines(ctx);
-        }
-        if self.settings.vignette {
-            style::effects::vignette(ctx);
-        }
-        if self.settings.noise_grain {
-            style::effects::noise_grain(ctx);
-        }
-        if self.settings.crt_flicker {
-            style::effects::crt_flicker(ctx);
-        }
+
 
         // keyboard, only when no text field owns the keys
         let keyboard_free = !ctx.wants_keyboard_input();
@@ -298,11 +295,10 @@ impl eframe::App for App {
             }
         }
 
-        // --- asymmetric layout: 62% files | 8px gap | 38% keys ---
+        // --- v5 layout: files take 62fr, the keys column is a fixed 340 px
+        // and floats lower than the file list ---
         let available = ctx.available_rect();
-        let gap = 8.0;
-        let keys_width = (available.width() * 0.38).min(300.0);
-        let files_width = available.width() - keys_width - gap;
+        let keys_width = 340.0_f32.min(available.width() * 0.45);
         
         // right tile: key manager (38%, inset with top margin)
         egui::SidePanel::right("keys")
@@ -345,29 +341,31 @@ impl eframe::App for App {
         
         // bottom tile: settings
         egui::TopBottomPanel::bottom("settings").exact_height(64.0)
-            .frame(egui::Frame::side_top_panel(&ctx.style()).fill(style::colors::BG_DEEP).stroke(egui::Stroke::new(1.0, style::colors::BORDER)))
+            .frame(egui::Frame::side_top_panel(&ctx.style()).fill(style::colors::theme().bg).stroke(egui::Stroke::new(1.0, style::colors::theme().line)))
             .show(ctx, |ui| {
                 ui::settings::show(ui, &mut self.settings);
             });
 
-        // dwm bar with blinking cursor
+        // status bar: cwd, generation count, blinking block cursor, and
+        // the last operation as a one-line journal
         let cursor_visible = self.cursor_blink.is_active();
+        let journal = self.status.as_ref().map(|(_, m)| m.clone());
         egui::TopBottomPanel::bottom("status").exact_height(24.0)
-            .frame(egui::Frame::side_top_panel(&ctx.style()).fill(style::colors::BG_PANEL).stroke(egui::Stroke::new(1.0, style::colors::BORDER)))
+            .frame(egui::Frame::side_top_panel(&ctx.style()).fill(style::colors::theme().bg2).stroke(egui::Stroke::new(1.0, style::colors::theme().line)))
             .show(ctx, |ui| {
                 let gen = self.keys.list.as_ref().map(|l| l.current_gen);
                 let n = self.keys.list.as_ref().map_or(0, |l| l.keys.len());
-                ui::status_bar::show(ui, &self.cwd, gen, n, cursor_visible);
+                ui::status_bar::show(ui, &self.cwd, gen, n, cursor_visible, journal.as_deref());
             });
 
         // center: file manager (62% width, remaining space)
         egui::CentralPanel::default()
-            .frame(egui::Frame::central_panel(&ctx.style()).fill(style::colors::BG_DEEP))
+            .frame(egui::Frame::central_panel(&ctx.style()).fill(style::colors::theme().bg))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.monospace(egui::RichText::new("> files").color(style::colors::ACCENT));
+                    ui.label(egui::RichText::new(format!("> {}", i18n::s().files)).color(colors::theme().accent));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("decrypt").clicked() {
+                        if ui.button(i18n::s().decrypt).clicked() {
                             if let Some(f) = self.files.get(self.selected) {
                                 if f.is_dna {
                                     let p = f.path.clone();
@@ -375,7 +373,7 @@ impl eframe::App for App {
                                 }
                             }
                         }
-                        if ui.button("encrypt").clicked() {
+                        if ui.button(i18n::s().encrypt).clicked() {
                             if let Some(f) = self.files.get(self.selected) {
                                 if !f.is_dna {
                                     let p = f.path.clone();
@@ -397,9 +395,9 @@ impl eframe::App for App {
                 if let Some((err, msg)) = &self.status {
                     ui.add_space(4.0);
                     let color = if *err {
-                        style::colors::WARN
+                        style::colors::theme().err
                     } else {
-                        style::colors::OK
+                        style::colors::theme().ok
                     };
                     // glitch effect on error
                     let glitch_active = self.glitch.as_ref().map(|g| g.active(now)).unwrap_or(false);
@@ -411,34 +409,34 @@ impl eframe::App for App {
                         let blue_off = glitch.blue_offset(now);
                         // draw three times for rgb split
                         ui.monospace(
-                            egui::RichText::new(msg.clone()).color(style::colors::WARN.gamma_multiply(0.7))
+                            egui::RichText::new(msg.clone()).color(style::colors::theme().err.gamma_multiply(0.7))
                         );
                         ui.painter().text(
                             ui.cursor().min + egui::vec2(off, 0.0),
                             egui::Align2::LEFT_TOP,
                             text.clone(),
                             egui::FontId::monospace(12.0),
-                            style::colors::WARN.gamma_multiply(0.5),
+                            style::colors::theme().err.gamma_multiply(0.5),
                         );
                         ui.painter().text(
                             ui.cursor().min + egui::vec2(glitch.red_offset(now), 0.0),
                             egui::Align2::LEFT_TOP,
                             text.clone(),
                             egui::FontId::monospace(12.0),
-                            style::colors::WARN.gamma_multiply(0.5),
+                            style::colors::theme().err.gamma_multiply(0.5),
                         );
                         ui.painter().text(
                             ui.cursor().min + egui::vec2(glitch.blue_offset(now), 0.0),
                             egui::Align2::LEFT_TOP,
                             text.clone(),
                             egui::FontId::monospace(12.0),
-                            style::colors::ACCENT_GLOW.gamma_multiply(0.5),
+                            style::colors::theme().accent2.gamma_multiply(0.5),
                         );
                     } else {
                         let color = if *err {
-                            style::colors::WARN
+                            style::colors::theme().err
                         } else {
-                            style::colors::OK
+                            style::colors::theme().ok
                         };
                         ui.monospace(
                             egui::RichText::new(msg.clone()).color(color),
@@ -468,7 +466,7 @@ impl eframe::App for App {
         }
 
         // request repaint for animations (crt_flicker, cursor blink, noise)
-        if self.settings.crt_flicker || self.settings.noise_grain || self.cursor_blink.is_active() {
+        if self.settings.motion && !self.settings.prefers_reduced {
             ctx.request_repaint_after(Duration::from_millis(16));
         }
     }

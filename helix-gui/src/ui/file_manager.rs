@@ -77,9 +77,9 @@ fn row_text(
     sel: bool, gen_known: bool,
 ) {
     let color = if sel {
-        colors::TEXT_MAIN
+        colors::theme().ink
     } else if f.is_dna {
-        colors::SECONDARY
+        colors::theme().accent2
     } else {
         colors::text_dim()
     };
@@ -154,7 +154,7 @@ pub fn show(
                 Align2::LEFT_CENTER,
                 t,
                 font.clone(),
-                colors::ACCENT,
+                colors::theme().accent,
             );
         }
         for (i, f) in files.iter().enumerate() {
@@ -169,7 +169,7 @@ pub fn show(
             let painter = ui.painter_at(rect);
             if sel {
                 // lain selection: left 2px accent bar + 18% bg
-                effects::draw_selection_row(&painter, rect, true, colors::ACCENT, glow);
+                effects::draw_selection_row(&painter, rect, true, colors::theme().accent, glow);
             }
             row_text(&painter, rect, f, sel, true);
         }

@@ -44,10 +44,10 @@ pub fn show(
         .fixed_pos(egui::pos2(0.0, 0.0))
         .show(ctx, |ui| {
             let rect = ui.available_rect_before_wrap();
-            ui.painter().rect_filled(rect, 0.0, colors::BG_DEEP.gamma_multiply(0.65));
+            ui.painter().rect_filled(rect, 0.0, colors::theme().bg.gamma_multiply(0.65));
         });
     egui::Window::new(
-        egui::RichText::new("helix").font(egui::FontId::monospace(14.0)).color(colors::ACCENT)
+        egui::RichText::new("helix").font(egui::FontId::monospace(14.0)).color(colors::theme().accent)
     )
         .collapsible(false)
         .resizable(false)
@@ -58,16 +58,16 @@ pub fn show(
                 Mode::Decrypt(f) => format!("> decrypt {}", f),
                 Mode::Delete(f) => format!("> delete {}?", f),
             };
-            ui.monospace(RichText::new(title).color(colors::ACCENT).size(14.0));
+            ui.monospace(RichText::new(title).color(colors::theme().accent).size(14.0));
             ui.add_space(6.0);
             if matches!(mode, Mode::Delete(_)) {
                 ui.monospace(RichText::new(
                     "this deletes the file from disk. the seed words cannot restore it.",
                 )
-                .color(colors::WARN));
+                .color(colors::theme().err));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if effects::draw_prompt_button(ui, "confirm delete", false, colors::WARN).clicked() {
+                    if effects::draw_prompt_button(ui, "confirm delete", false, colors::theme().err).clicked() {
                         *on_confirm = true;
                     }
                     if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
@@ -84,23 +84,23 @@ pub fn show(
                     let red_off = d.glitch.as_ref().unwrap().red_offset(now);
                     let blue_off = d.glitch.as_ref().unwrap().blue_offset(now);
                     // draw three times for rgb split
-                    ui.monospace(RichText::new(text.clone()).color(colors::WARN.gamma_multiply(0.7)));
+                    ui.monospace(RichText::new(text.clone()).color(colors::theme().err.gamma_multiply(0.7)));
                     ui.painter().text(
                         ui.cursor().min + egui::vec2(red_off, 0.0),
                         egui::Align2::LEFT_TOP,
                         text.clone(),
                         egui::FontId::monospace(12.0),
-                        colors::WARN.gamma_multiply(0.5),
+                        colors::theme().err.gamma_multiply(0.5),
                     );
                     ui.painter().text(
                         ui.cursor().min + egui::vec2(blue_off, 0.0),
                         egui::Align2::LEFT_TOP,
                         text.clone(),
                         egui::FontId::monospace(12.0),
-                        colors::ACCENT_GLOW.gamma_multiply(0.5),
+                        colors::theme().accent2.gamma_multiply(0.5),
                     );
                 } else {
-                    ui.monospace(RichText::new(text).color(colors::WARN));
+                    ui.monospace(RichText::new(text).color(colors::theme().err));
                 }
                 ui.add_space(6.0);
             }
@@ -132,7 +132,7 @@ pub fn show(
                     });
                 }
                 ui.horizontal(|ui| {
-                    if effects::draw_prompt_button(ui, "run", false, colors::TEXT_MAIN).clicked() {
+                    if effects::draw_prompt_button(ui, "run", false, colors::theme().ink).clicked() {
                         *on_confirm = true;
                     }
                     if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
@@ -142,7 +142,7 @@ pub fn show(
             }
             if let Some(msg) = out_msg {
                 ui.add_space(4.0);
-                ui.monospace(RichText::new(msg.clone()).color(colors::OK));
+                ui.monospace(RichText::new(msg.clone()).color(colors::theme().ok));
             }
         });
 }

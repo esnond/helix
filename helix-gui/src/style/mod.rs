@@ -13,25 +13,25 @@ pub fn apply(ctx: &egui::Context) {
     let v = &mut style.visuals;
     
     // core palette
-    v.panel_fill = colors::BG_DEEP;
-    v.window_fill = colors::BG_PANEL;
-    v.extreme_bg_color = colors::BG_DEEP;
-    v.override_text_color = Some(colors::TEXT_MAIN);
-    v.selection.bg_fill = colors::ACCENT;
-    v.selection.stroke = egui::Stroke::new(1.0, colors::ACCENT_GLOW);
+    v.panel_fill = colors::theme().bg;
+    v.window_fill = colors::theme().bg2;
+    v.extreme_bg_color = colors::theme().bg;
+    v.override_text_color = Some(colors::theme().ink);
+    v.selection.bg_fill = colors::theme().accent;
+    v.selection.stroke = egui::Stroke::new(1.0, colors::theme().accent2);
     
     // widgets
-    v.widgets.noninteractive.bg_fill = colors::BG_DEEP;
-    v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, colors::TEXT_MAIN);
-    v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, colors::BORDER);
-    v.widgets.inactive.bg_fill = colors::BG_PANEL;
-    v.widgets.inactive.weak_bg_fill = colors::BG_PANEL;
+    v.widgets.noninteractive.bg_fill = colors::theme().bg;
+    v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, colors::theme().ink);
+    v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, colors::theme().line);
+    v.widgets.inactive.bg_fill = colors::theme().bg2;
+    v.widgets.inactive.weak_bg_fill = colors::theme().bg2;
     v.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, colors::text_dim());
-    v.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, colors::BORDER);
+    v.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, colors::theme().line);
     v.widgets.hovered.weak_bg_fill = colors::surface_hover();
-    v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, colors::SECONDARY);
+    v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, colors::theme().accent2);
     v.widgets.active.weak_bg_fill = colors::surface_active();
-    v.widgets.active.bg_stroke = egui::Stroke::new(1.0, colors::ACCENT);
+    v.widgets.active.bg_stroke = egui::Stroke::new(1.0, colors::theme().accent);
     
     // text styles — all monospace, no bold
     for ty in [

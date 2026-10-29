@@ -37,7 +37,7 @@ pub fn vignette(ctx: &Context) {
             rect,
             Rounding::same(0.0),
             Color32::TRANSPARENT,
-            Stroke::new(2.0, VIGNETTE.gamma_multiply((alpha as f32 / 255.0).min(1.0))),
+            Stroke::new(2.0, theme().bg.gamma_multiply((alpha as f32 / 255.0).min(1.0))),
         );
     }
 }
@@ -231,7 +231,7 @@ pub fn draw_prompt_button(
     _color: Color32,
 ) -> egui::Response {
     let text = format!("> {}", label);
-    let color = if hovered { ACCENT } else { TEXT_MAIN };
+    let color = if hovered { theme().accent } else { theme().ink };
     
     ui.add(egui::Button::new(
         egui::RichText::new(text)
@@ -257,9 +257,9 @@ pub fn draw_selection_row(
         rect,
         Rounding::ZERO,
         Color32::from_rgba_unmultiplied(
-            ACCENT.r(),
-            ACCENT.g(),
-            ACCENT.b(),
+            theme().accent.r(),
+            theme().accent.g(),
+            theme().accent.b(),
             46, // 18% of 255
         ),
     );
@@ -271,6 +271,6 @@ pub fn draw_selection_row(
             egui::vec2(2.0, rect.height()),
         ),
         Rounding::ZERO,
-        ACCENT,
+        theme().accent,
     );
 }

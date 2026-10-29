@@ -2,118 +2,50 @@
 
 dwm-tiling, Serial Experiments Lain + Sun Microsystems purple aesthetic GUI for helix key manager.
 
-## visual spec
+## design language: v5
 
-**palette** — teal on void, purple glow, no white, no blue
-- `BG_DEEP`  `#07070f` (void)
-- `BG_PANEL` `#0d0d1a` (panel)
-- `TEXT_MAIN` `#5eead4` (phosphor teal)
-- `ACCENT` `#a855f7` (sun purple)
-- `ACCENT_GLOW` `#c084fc` (purple glow)
-- `WARN` `#f472b6` (magenta)
-- `OK` `#34d399` (emerald)
-- `BORDER` `#1e1e3a` (muted purple)
+the full rules live in `../docs/design/constitution.md`; this file only
+lists what the code actually does.
 
-**fonts** — monospace only, regular weight, no bold
-- heading: 18px
-- body/mono: 13px
-- small: 11px
-- letter-spacing: 0.5px
-- system monospace (Fira Code / JetBrains Mono / DejaVu Sans Mono)
+**palette** — two polarities, persisted. dark: bg `#131314`, bg2 `#18181a`,
+field `#1d1d20`, ink `#d6d3cd`, ink2 `#8d8a84`, line `#26262a`, accent
+`#c8a24a`, ok `#7fa88f`, err `#c26a5a`. light: bg `#f2efe9`, ink `#22201d`,
+accent `#7a5c1e`, err `#9c3f2e`. never pure black, never pure white,
+strokes at 1.4 px minimum.
 
-**layout** — asymmetric 62/38 split
-- left: file manager (62%, dwm tile)
-- right: key manager (38%, inset 24px top margin)
-- bottom: settings strip (64px)
-- bottom: status bar (24px, blinking block cursor)
+**type** — IBM Plex Sans (ui) and IBM Plex Mono (data) when installed,
+DejaVu fallback otherwise. body 13 px, micro-heads 11 px uppercase,
+heading 18 px. data is always monospace.
 
-**effects** (all CPU, no shaders, single overlay pass where possible)
-- scanlines: 1px every 3px at 12% alpha
-- vignette: 8 concentric rects, 0% center → 35% edges
-- noise grain: monochrome static 3% alpha, animated 12fps deterministic
-- crt flicker: global brightness ±1% at 0.5Hz sine
-- cursor blink: block cursor 1s on / 1s off
-- text print: types label char-by-char over 180ms on focus change
-- glitch: 120ms horizontal slice displacement + rgb split on error
-- glow focus: 4-layer expanding strokes at 40% alpha
-- selection: left 2px solid accent bar + 18% bg alpha
-- prompt buttons: `> label` format, no bg fill, hover = accent glow
+**layout** — files take the remaining width; the keys column is 340 px
+(45 % cap). hairlines separate groups, four groups maximum: files, keys,
+jobs, status.
 
-**perf budget** — 60fps at 1920x1080, effects layer < 2ms/frame
+**states** — empty folder and read failure both state the cause and one
+next action; the jobs strip shows queued work with a progress hairline; a
+busy keys column shows a reason line, not a spinner.
 
-## run
+**dendrite** — one node per generation, notches for drift from the parent,
+the current generation the only filled node, row hover highlights it.
 
-```bash
-cd helix-gui
-cargo run --release        # wayland native or x11/xwayland
-cargo test                 # headless core tests (no display needed)
+**i18n** — RU/EN dictionary, toggle persisted next to polarity and motion.
+
+**not shipped** — the sound engine, dialog morph animation, nacre sweep and
+the full i18n of dialog bodies are deferred; `../docs/r5_spec.md` lists them.
+
+## build and run
+
 ```
-
-### environment
-
-- `HELIX_CONNECTOME` — override connectome csv path (default: `../vendor/petri/data/herm_302.csv`)
-
-### keyboard
-
-- `j` / `k` — navigate file list
-- `enter` — encrypt (non-.dna) / decrypt (.dna)
-- `e` — encrypt selected
-- `del` — delete selected
-- focus changes trigger text print effect (`> files` / `> keys`)
-
-### settings (bottom strip)
-
-- scanlines / vignette / noise grain / crt flicker toggles
-- glow strength slider (0.0–2.0)
-- pbkdf2 iterations shown (compile-time constant, 600k)
+cd helix && make            # c core, needed once for the ffi surface
+cd helix-gui && cargo build
+cargo run                   # needs a display
+cargo test                  # 2 tests, both drive the c core through ffi
+```
 
 ## architecture
 
-- Rust/eframe 0.23 + egui 0.23 frontend
-- C core (petri engine vendored from ~/elegans v1.0.1) via FFI shim (`gui_api.h/c`)
-- `build.rs` compiles C core with `cc` crate using `-std=c99 -Wall -Wextra -pedantic -Werror -O2 -ffp-contract=off`
-- deterministic: xorshift64* RNG from C core, bitwise reproducible
-- worker threads for crypto operations (encrypt/decrypt/evolve/list) keep UI responsive
-
-## files
-
-```
-helix-gui/
-├── src/
-│   ├── main.rs                    # app state, job system, asymmetric layout, effects layer
-│   ├── core/helix_wrapper.rs      # FFI bindings
-│   ├── style/
-│   │   ├── mod.rs                 # apply() — palette, fonts, widget styles
-│   │   ├── colors.rs              # palette constants & functions
-│   │   ├── effects.rs             # scanlines, vignette, noise, glitch, glow, blink, print
-│   │   └── fonts.rs               # font config
-│   └── ui/
-│       ├── file_manager.rs        # left tile (62%), selection with left accent bar
-│       ├── key_manager.rs         # right tile (38%), gen display, prompt buttons
-│       ├── encryption_dialog.rs   # lain terminal modal, glitch on error
-│       ├── settings.rs            # effect toggles, glow slider
-│       └── status_bar.rs          # dwm bar, blinking cursor
-├── gui_api.h / gui_api.c          # C shim (thin wrappers over existing C APIs)
-├── build.rs                       # cc build of vendored petri + crypto + dna + gui_api
-└── Cargo.toml
-```
-
-## tests
-
-```bash
-cargo test
-```
-
-runs headless FFI tests:
-- `gen_seed_has_right_word_count` — BIP39 word count validation
-- `dna_roundtrip_headless` — encrypt/decrypt roundtrip via C core
-
-## determinism
-
-- single seed via CLI or env controls entire simulation
-- no `rand()`, no `time()` in sim path
-- CSV output bitwise identical across compiler configs (gcc/clang, -O0/-O2/-O3)
-
-## license
-
-MIT
+`src/gui_api.c` is the only unsafe boundary: it exposes the C core as
+plain C functions, and `src/core/helix_wrapper.rs` is the only module that
+declares them. everything above that is safe Rust. crypto jobs run on a
+worker thread and report through an `mpsc` channel, so the ui never blocks
+on a 600k-iteration pbkdf2.
