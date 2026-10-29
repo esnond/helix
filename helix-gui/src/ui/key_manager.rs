@@ -5,6 +5,7 @@
 use eframe::egui::{self, pos2, vec2, RichText, Sense, Stroke};
 
 use crate::i18n;
+use crate::ui::encryption_dialog::button;
 use crate::style::{colors, effects};
 use crate::wrapper::{self, KeyList};
 
@@ -91,7 +92,7 @@ fn dendrite(ui: &mut egui::Ui, list: &KeyList) {
 pub fn show(
     ui: &mut egui::Ui, state: &mut KeyState, mnemonic: Option<&str>,
     glow: f32, on_evolve: &mut bool, on_export: &mut bool,
-    on_reload: &mut bool,
+    on_reload: &mut bool, on_seed: &mut bool,
 ) {
     let t = colors::theme();
     ui.label(crate::style::fonts::micro_head(i18n::s().keys));
@@ -130,26 +131,35 @@ pub fn show(
             ui.label(RichText::new("keychain not loaded").color(t.ink2).small());
         }
         (None, None) => {
-            ui.label(RichText::new("no seed entered").color(t.ink2).small());
+            ui.label(
+                RichText::new("no phrase loaded: press the button below")
+                    .color(t.ink2)
+                    .small(),
+            );
         }
     }
 
     ui.add_space(10.0);
-    // actions as menu rows, kbd hint on the right
-    ui.horizontal(|ui| {
+    // real buttons: the phrase is the entry point, so it is primary
+    ui.vertical(|ui| {
+        if button(ui, i18n::s().seed_words, true).clicked() {
+            *on_seed = true;
+        }
+        ui.add_space(4.0);
         ui.add_enabled_ui(mnemonic.is_some() && !state.busy, |ui| {
-            if effects::draw_prompt_button(ui, i18n::s().evolve, false, t.ink).clicked() {
+            if button(ui, i18n::s().evolve, false).clicked() {
                 *on_evolve = true;
             }
-            if effects::draw_prompt_button(ui, i18n::s().reload, false, t.ink).clicked() {
+            if button(ui, i18n::s().reload, false).clicked() {
                 *on_reload = true;
             }
         });
-    });
-    ui.horizontal(|ui| {
-        if effects::draw_prompt_button(ui, i18n::s().export_seed, false, t.ink).clicked() {
-            *on_export = true;
-        }
+        ui.add_space(4.0);
+        ui.add_enabled_ui(mnemonic.is_some(), |ui| {
+            if button(ui, i18n::s().export_seed, false).clicked() {
+                *on_export = true;
+            }
+        });
     });
     if state.busy {
         // no bare spinner: a reason line and a hairline instead

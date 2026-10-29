@@ -140,7 +140,8 @@ fn row_text(
 pub fn show(
     ui: &mut egui::Ui, files: &[FileEntry], selected: &mut usize,
     glow: f32,
-) {
+) -> Option<usize> {
+    let mut activated: Option<usize> = None;
     egui::ScrollArea::vertical().show(ui, |ui| {
         if files.is_empty() {
             ui.add_space(20.0);
@@ -177,8 +178,13 @@ pub fn show(
                 egui::vec2(ui.available_width(), 22.0),
                 Sense::click(),
             );
+            let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
             if resp.clicked() {
                 *selected = i;
+            }
+            if resp.double_clicked() {
+                *selected = i;
+                activated = Some(i);
             }
             let painter = ui.painter_at(rect);
             if sel {
@@ -188,6 +194,7 @@ pub fn show(
             row_text(&painter, rect, f, sel, true);
         }
     });
+    activated
 }
 #[cfg(test)]
 mod tests {

@@ -21,6 +21,12 @@ heading 18 px. data is always monospace.
 (45 % cap). hairlines separate groups, four groups maximum: files, keys,
 jobs, status.
 
+**mouse first** — every action is a button: `..` and `⟳` in the path
+row, `encrypt` / `decrypt` / `delete` top right with hover text, the phrase
+button in the keys column, and real `Encrypt` / `Cancel` buttons in the
+dialog. single click selects a row, double click opens it (folder or
+file). the keyboard shortcuts are an accelerator, not the only path.
+
 **states** — empty folder and read failure both state the cause and one
 next action; the jobs strip shows queued work with a progress hairline; a
 busy keys column shows a reason line, not a spinner.

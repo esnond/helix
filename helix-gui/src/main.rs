@@ -318,6 +318,7 @@ impl eframe::App for App {
                 let mut on_evolve = false;
                 let mut on_export = false;
                 let mut on_reload = false;
+                let mut on_seed = false;
                 let m = self.mnemonic.clone();
                 ui::key_manager::show(
                     ui,
@@ -327,7 +328,11 @@ impl eframe::App for App {
                     &mut on_evolve,
                     &mut on_export,
                     &mut on_reload,
+                    &mut on_seed,
                 );
+                if on_seed {
+                    self.open_dialog(Mode::Seed);
+                }
                 if on_evolve {
                     if let Some(m) = self.mnemonic.clone() {
                         self.spawn(Job::Evolve { m });
@@ -373,53 +378,110 @@ impl eframe::App for App {
             .frame(egui::Frame::central_panel(&ctx.style()).fill(style::colors::theme().bg))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    /* the path is the affordance: click a segment to go
-                       back up, so navigation does not need the keyboard */
+                    /* path row: every navigation step is a click */
                     let mut go_up = false;
-                    ui.label(egui::RichText::new(format!("> {}", i18n::s().files)).color(colors::theme().accent));
-                    ui.add_space(10.0);
+                    ui.label(
+                        egui::RichText::new(format!("> {}", i18n::s().files))
+                            .color(colors::theme().accent),
+                    );
+                    ui.add_space(8.0);
                     if ui
                         .small_button("..")
-                        .on_hover_text("up one level (h, left)")
+                        .on_hover_text(i18n::s().up)
                         .clicked()
                     {
                         go_up = true;
                     }
+                    if ui
+                        .small_button("⟳")
+                        .on_hover_text(i18n::s().refresh)
+                        .clicked()
+                    {
+                        self.rescan();
+                    }
                     ui.label(
                         egui::RichText::new(&self.cwd)
-                            .font(crate::style::fonts::font_id(12.0))
+                            .font(style::fonts::font_id(12.0))
                             .color(colors::theme().ink2),
                     );
                     if go_up {
                         self.nav_up();
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(i18n::s().decrypt).clicked() {
-                            if let Some(f) = self.files.get(self.selected) {
-                                if f.is_dna {
-                                    let p = f.path.clone();
-                                    self.open_dialog(Mode::Decrypt(p));
-                                }
+                        // primary action last on the right, so the row reads
+                        // left to right: destructive, secondary, primary
+                        let sel_path = self.files.get(self.selected).map(|f| f.path.clone());
+                        let is_file = self.files.get(self.selected).map(|f| !f.is_dir).unwrap_or(false);
+                        let is_dna = self.files.get(self.selected).map(|f| f.is_dna).unwrap_or(false);
+                        let is_dir = self.files.get(self.selected).map(|f| f.is_dir).unwrap_or(false);
+                        let gen = self.keys.list.as_ref().map_or(0, |l| l.current_gen);
+
+                        if ui
+                            .add_enabled(
+                                is_dna,
+                                egui::Button::new(i18n::s().decrypt).min_size(egui::vec2(104.0, 26.0)),
+                            )
+                            .on_hover_text("open the phrase dialog for the selected .dna")
+                            .clicked()
+                        {
+                            if let Some(p) = sel_path.clone() {
+                                self.open_dialog(Mode::Decrypt(p));
                             }
                         }
-                        if ui.button(i18n::s().encrypt).clicked() {
-                            if let Some(f) = self.files.get(self.selected) {
-                                if !f.is_dna && !f.is_dir {
-                                    let p = f.path.clone();
-                                    self.dialog.target_gen =
-                                        self.keys.list.as_ref().map_or(0, |l| l.current_gen);
-                                    self.open_dialog(Mode::Encrypt(p));
-                                }
+                        if ui
+                            .add_enabled(
+                                is_file && !is_dna,
+                                egui::Button::new(i18n::s().encrypt)
+                                    .fill(colors::theme().accent2)
+                                    .min_size(egui::vec2(104.0, 26.0)),
+                            )
+                            .on_hover_text("encrypt the selected file into <name>.dna")
+                            .clicked()
+                        {
+                            if let Some(p) = sel_path.clone() {
+                                self.dialog.target_gen = gen;
+                                self.open_dialog(Mode::Encrypt(p));
                             }
+                        }
+                        if ui
+                            .add_enabled(
+                                is_file && !is_dna,
+                                egui::Button::new(i18n::s().delete)
+                                    .min_size(egui::vec2(84.0, 26.0)),
+                            )
+                            .on_hover_text("delete the selected file from disk")
+                            .clicked()
+                        {
+                            if let Some(p) = sel_path.clone() {
+                                self.open_dialog(Mode::Delete(p));
+                            }
+                        }
+                        if is_dir {
+                            ui.label(
+                                egui::RichText::new("open the folder: double click or enter")
+                                    .small()
+                                    .color(colors::theme().ink2),
+                            );
                         }
                     });
                 });
                 ui.add_space(4.0);
-                ui::file_manager::show(
+                if let Some(i) = ui::file_manager::show(
                     ui,
                     &self.files,
                     &mut self.selected,
                     self.settings.glow,
+                ) {
+                    if let Some(f) = self.files.get(i) {
+                        let (path, is_dir, is_dna) = (f.path.clone(), f.is_dir, f.is_dna);
+                        self.activate(&path, is_dir, is_dna);
+                    }
+                }
+                ui.add_space(2.0);
+                ui.label(
+                    egui::RichText::new(i18n::s().hint)
+                        .small()
+                        .color(colors::theme().ink2),
                 );
                 if let Some((err, msg)) = &self.status {
                     ui.add_space(4.0);
@@ -524,6 +586,9 @@ impl App {
                     format!("{inp}.dec")
                 };
                 self.spawn(Job::Decrypt { inp, out, m });
+            }
+            Mode::Seed => {
+                self.spawn(Job::List { m });
             }
             Mode::Delete(path) => {
                 match std::fs::remove_file(&path) {

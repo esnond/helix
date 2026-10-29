@@ -9,6 +9,8 @@ pub enum Mode {
     Encrypt(String),
     Decrypt(String),
     Delete(String),
+    /// load a phrase into the key column without touching a file
+    Seed,
 }
 
 pub struct Dialog {
@@ -31,6 +33,23 @@ impl Dialog {
             busy: false,
         }
     }
+}
+
+/// a real button: filled when primary, outlined otherwise. the prompt
+/// style is gone because "> run" reads as a shell hint, not a control.
+pub fn button(ui: &mut egui::Ui, label: &str, primary: bool) -> egui::Response {
+    let t = colors::theme();
+    let (fill, text) = if primary {
+        (t.accent2, t.bg)
+    } else {
+        (t.field, t.ink)
+    };
+    ui.add(
+        egui::Button::new(RichText::new(label).color(text).size(13.0))
+            .fill(fill)
+            .min_size(egui::vec2(96.0, 26.0)),
+    )
+    .on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 pub fn show(
@@ -57,6 +76,7 @@ pub fn show(
                 Mode::Encrypt(f) => format!("> encrypt {}", f),
                 Mode::Decrypt(f) => format!("> decrypt {}", f),
                 Mode::Delete(f) => format!("> delete {}?", f),
+                Mode::Seed => "> seed words".to_string(),
             };
             ui.monospace(RichText::new(title).color(colors::theme().accent).size(14.0));
             ui.add_space(6.0);
@@ -67,10 +87,10 @@ pub fn show(
                 .color(colors::theme().err));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if effects::draw_prompt_button(ui, "confirm delete", false, colors::theme().err).clicked() {
+                    if button(ui, "Delete file", true).clicked() {
                         *on_confirm = true;
                     }
-                    if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
+                    if button(ui, "Cancel", false).clicked() {
                         *on_close = true;
                     }
                 });
@@ -131,11 +151,18 @@ pub fn show(
                         ui.add(egui::DragValue::new(&mut d.target_gen).clamp_range(0..=999).speed(1.0));
                     });
                 }
+                ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if effects::draw_prompt_button(ui, "run", false, colors::theme().ink).clicked() {
+                    let (run, cancel) = match mode {
+                        Mode::Encrypt(_) => ("Encrypt", "Cancel"),
+                        Mode::Decrypt(_) => ("Decrypt", "Cancel"),
+                        Mode::Seed => ("Load phrase", "Cancel"),
+                        Mode::Delete(_) => ("Delete", "Cancel"),
+                    };
+                    if button(ui, run, true).clicked() {
                         *on_confirm = true;
                     }
-                    if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
+                    if button(ui, cancel, false).clicked() {
                         *on_close = true;
                     }
                 });
