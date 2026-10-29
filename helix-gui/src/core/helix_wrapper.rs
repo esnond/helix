@@ -62,7 +62,7 @@ fn err(rc: c_int) -> &'static str {
         -3 => "engine failure: connectome table missing (relaunch the \
 installed binary) or the keychain is unusable",
         -7 => "invalid phrase: a word is misspelled or the checksum \
-does not match",
+does not match (12× abandon is not valid; use 11× abandon + about)",
         -4 => "authentication failed (wrong phrase or corrupt file)",
         -5 => "out of memory",
         -6 => "output file already exists",
@@ -258,14 +258,19 @@ pub fn decrypt_ex(
     }
 }
 
-/// bip39 wordlist+checksum validation, no derivation cost
+/// bip39 wordlist+checksum validation, no derivation cost. the check
+/// has its own error domain: -1 here means «invalid phrase», not the
+/// dna io error that shares the number.
 pub fn phrase_valid(mnemonic: &str) -> Result<(), String> {
     let m = CString::new(mnemonic).map_err(|_| "bad mnemonic".to_string())?;
     let rc = unsafe { helix_gui_check_mnemonic(m.as_ptr()) };
     if rc == 0 {
         Ok(())
     } else {
-        Err(err(rc).into())
+        Err("invalid phrase: words must come from the bip39 english \
+             list and the checksum must match — 12× abandon is NOT a \
+             valid phrase, use «gen-seed» or 11× abandon + about"
+            .to_string())
     }
 }
 
@@ -462,6 +467,12 @@ mod gui_flow_tests {
            job would start */
         assert!(phrase_valid(MNEMONIC).is_ok());
         assert!(phrase_valid("abandon abandon WRONG abandon abandon             abandon abandon abandon abandon abandon abandon about")
+        .is_err());
+        /* all-abandon fails the checksum: the classic user trap */
+        assert!(phrase_valid(
+            "abandon abandon abandon abandon abandon abandon abandon \
+             abandon abandon abandon abandon abandon"
+        )
         .is_err());
 
         /* evolve: chain advances, generations increase; the keychain
