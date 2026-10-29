@@ -44,31 +44,33 @@ pub fn show(
         .fixed_pos(egui::pos2(0.0, 0.0))
         .show(ctx, |ui| {
             let rect = ui.available_rect_before_wrap();
-            ui.painter().rect_filled(rect, 0.0, colors::BG.gamma_multiply(0.55));
+            ui.painter().rect_filled(rect, 0.0, colors::BG_DEEP.gamma_multiply(0.65));
         });
-    egui::Window::new(egui::RichText::new("helix").color(colors::ACCENT))
+    egui::Window::new(
+        egui::RichText::new("helix").font(egui::FontId::monospace(14.0)).color(colors::ACCENT)
+    )
         .collapsible(false)
         .resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
             let title = match mode {
-                Mode::Encrypt(f) => format!("encrypt {f}"),
-                Mode::Decrypt(f) => format!("decrypt {f}"),
-                Mode::Delete(f) => format!("delete {f}?"),
+                Mode::Encrypt(f) => format!("> encrypt {}", f),
+                Mode::Decrypt(f) => format!("> decrypt {}", f),
+                Mode::Delete(f) => format!("> delete {}?", f),
             };
-            ui.monospace(RichText::new(title).color(colors::PRIMARY).size(14.0));
+            ui.monospace(RichText::new(title).color(colors::ACCENT).size(14.0));
             ui.add_space(6.0);
             if matches!(mode, Mode::Delete(_)) {
                 ui.monospace(RichText::new(
                     "this deletes the file from disk. the seed words cannot restore it.",
                 )
-                .color(colors::ERROR));
+                .color(colors::WARN));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.button("confirm delete").clicked() {
+                    if effects::draw_prompt_button(ui, "confirm delete", false, colors::WARN).clicked() {
                         *on_confirm = true;
                     }
-                    if ui.button("cancel").clicked() {
+                    if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
                         *on_close = true;
                     }
                 });
@@ -76,19 +78,29 @@ pub fn show(
             }
             if let Some(err) = &d.error {
                 let glitch = d.glitch.as_ref().map(|g| g.active(now)).unwrap_or(false);
-                let text = RichText::new(format!("! {err}")).color(colors::ERROR);
+                let text = format!("! {err}");
                 if glitch {
                     let off = d.glitch.as_ref().unwrap().offset(now);
-                    ui.monospace(text.clone());
+                    let red_off = d.glitch.as_ref().unwrap().red_offset(now);
+                    let blue_off = d.glitch.as_ref().unwrap().blue_offset(now);
+                    // draw three times for rgb split
+                    ui.monospace(RichText::new(text.clone()).color(colors::WARN.gamma_multiply(0.7)));
                     ui.painter().text(
-                        ui.cursor().min + egui::vec2(off, 0.0),
+                        ui.cursor().min + egui::vec2(red_off, 0.0),
                         egui::Align2::LEFT_TOP,
-                        format!("! {err}"),
+                        text.clone(),
                         egui::FontId::monospace(12.0),
-                        colors::ERROR.gamma_multiply(0.5),
+                        colors::WARN.gamma_multiply(0.5),
+                    );
+                    ui.painter().text(
+                        ui.cursor().min + egui::vec2(blue_off, 0.0),
+                        egui::Align2::LEFT_TOP,
+                        text.clone(),
+                        egui::FontId::monospace(12.0),
+                        colors::ACCENT_GLOW.gamma_multiply(0.5),
                     );
                 } else {
-                    ui.monospace(text);
+                    ui.monospace(RichText::new(text).color(colors::WARN));
                 }
                 ui.add_space(6.0);
             }
@@ -98,12 +110,12 @@ pub fn show(
                     ui.monospace(RichText::new(
                         "deriving... pbkdf2 600k + 10000 connectome steps",
                     )
-                    .color(colors::TEXT_DIM));
+                    .color(colors::text_dim()));
                 });
             } else {
-                ui.monospace(RichText::new("seed words:").color(colors::TEXT_DIM));
+                ui.monospace(RichText::new("seed words:").color(colors::text_dim()));
                 let resp = egui::TextEdit::singleline(&mut d.mnemonic)
-                    .font(egui::FontId::monospace(12.0))
+                    .font(egui::FontId::monospace(13.0))
                     .desired_width(420.0)
                     .hint_text("twelve or twenty four words")
                     .show(ui);
@@ -115,22 +127,22 @@ pub fn show(
                 ui.add_space(8.0);
                 if matches!(mode, Mode::Encrypt(_)) {
                     ui.horizontal(|ui| {
-                        ui.monospace(RichText::new("generation:").color(colors::TEXT_DIM));
-                        ui.add(egui::DragValue::new(&mut d.target_gen).clamp_range(0..=999));
+                        ui.monospace(RichText::new("generation:").color(colors::text_dim()));
+                        ui.add(egui::DragValue::new(&mut d.target_gen).clamp_range(0..=999).speed(1.0));
                     });
                 }
                 ui.horizontal(|ui| {
-                    if ui.button("run").clicked() {
+                    if effects::draw_prompt_button(ui, "run", false, colors::TEXT_MAIN).clicked() {
                         *on_confirm = true;
                     }
-                    if ui.button("cancel").clicked() {
+                    if effects::draw_prompt_button(ui, "cancel", false, colors::text_dim()).clicked() {
                         *on_close = true;
                     }
                 });
             }
             if let Some(msg) = out_msg {
                 ui.add_space(4.0);
-                ui.monospace(RichText::new(msg.clone()).color(colors::SUCCESS));
+                ui.monospace(RichText::new(msg.clone()).color(colors::OK));
             }
         });
 }

@@ -1,8 +1,7 @@
-//! file manager: the central panel. dwm-like: borderless list, one
-//! highlighted row, keyboard first. rows are painted manually so the
-//! selection highlight and the text share one rect.
+//! file manager: the central panel — dwm tiling, lain phosphor.
+//! asymmetric: left panel dominant (62%), selection = left accent bar.
 
-use eframe::egui::{self, pos2, Align2, FontId, Sense};
+use eframe::egui::{self, pos2, Align2, Sense};
 use std::time::UNIX_EPOCH;
 
 use crate::style::{colors, effects};
@@ -68,23 +67,23 @@ fn human(n: u64) -> String {
     }
 }
 
-const COL_NAME: f32 = 8.0;
-const COL_SIZE: f32 = 330.0;
-const COL_GEN: f32 = 400.0;
-const COL_MTIME: f32 = 450.0;
+const COL_NAME: f32 = 12.0;
+const COL_SIZE: f32 = 320.0;
+const COL_GEN: f32 = 390.0;
+const COL_MTIME: f32 = 440.0;
 
 fn row_text(
     painter: &egui::Painter, rect: egui::Rect, f: &FileEntry,
     sel: bool, gen_known: bool,
 ) {
     let color = if sel {
-        colors::TEXT
+        colors::TEXT_MAIN
     } else if f.is_dna {
         colors::SECONDARY
     } else {
-        colors::TEXT_DIM
+        colors::text_dim()
     };
-    let font = FontId::monospace(12.0);
+    let font = egui::FontId::monospace(13.0);
     painter.text(
         pos2(rect.left() + COL_NAME, rect.center().y),
         Align2::LEFT_CENTER,
@@ -128,11 +127,10 @@ pub fn show(
     ui: &mut egui::Ui, files: &[FileEntry], selected: &mut usize,
     glow: f32,
 ) {
-    let font = FontId::monospace(12.0);
     egui::ScrollArea::vertical().show(ui, |ui| {
         if files.is_empty() {
             ui.add_space(20.0);
-            ui.colored_label(colors::TEXT_DIM, "no files in this directory");
+            ui.colored_label(colors::text_dim(), "no files in this directory");
             return;
         }
         if *selected >= files.len() {
@@ -140,10 +138,11 @@ pub fn show(
         }
         // header
         let (hrect, _) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), 18.0),
+            egui::vec2(ui.available_width(), 20.0),
             Sense::hover(),
         );
         let hp = ui.painter_at(hrect);
+        let font = egui::FontId::monospace(11.0);
         for (x, t) in [
             (COL_NAME, "name"),
             (COL_SIZE, "size"),
@@ -161,7 +160,7 @@ pub fn show(
         for (i, f) in files.iter().enumerate() {
             let sel = i == *selected;
             let (rect, resp) = ui.allocate_exact_size(
-                egui::vec2(ui.available_width(), 20.0),
+                egui::vec2(ui.available_width(), 22.0),
                 Sense::click(),
             );
             if resp.clicked() {
@@ -169,12 +168,8 @@ pub fn show(
             }
             let painter = ui.painter_at(rect);
             if sel {
-                painter.rect_filled(
-                    rect,
-                    2.0,
-                    colors::PRIMARY.gamma_multiply(0.30),
-                );
-                effects::glow(&painter, rect, colors::ACCENT, glow);
+                // lain selection: left 2px accent bar + 18% bg
+                effects::draw_selection_row(&painter, rect, true, colors::ACCENT, glow);
             }
             row_text(&painter, rect, f, sel, true);
         }
