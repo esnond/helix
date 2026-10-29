@@ -12,7 +12,8 @@ VENDOR_SRC = sim connectome neuron body world modulators plasticity \
              metrics rng gcamp mutants evolution
 VENDOR_OBJ = $(addprefix vendor/petri/,$(addsuffix .o,$(VENDOR_SRC)))
 CRYPTO_SRC = secure_mem hex sha256 sha512 hmac pbkdf2 bip39 entropy kdf keychain \
-             evolve keycheck chacha20 poly1305 aead dna kyber_wrap kyber_drbg
+             evolve keycheck chacha20 poly1305 aead dna kyber_wrap kyber_drbg \
+             blake2b argon2 hkpair
 CRYPTO_OBJ = $(addprefix src/,$(addsuffix .o,$(CRYPTO_SRC)))
 MATH_OBJ   = src/vendored_math/vmath.o
 KYBER_SRC  = cbd fips202 indcpa kem ntt poly polyvec reduce symmetric-shake verify
@@ -22,7 +23,8 @@ TESTS      = tests/test_vectors tests/test_bip39 tests/test_kdf \
              tests/test_keychain tests/test_evolution \
              tests/test_backward_compat tests/test_forward_secrecy \
              tests/test_evolve tests/test_chacha tests/test_dna \
-             tests/test_kyber tests/test_secure_mem
+             tests/test_kyber tests/test_secure_mem \
+             tests/test_argon2id tests/test_hkpair
 
 all: libpetri.a $(TESTS) helix
 

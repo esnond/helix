@@ -14,9 +14,11 @@
 #include "sha256.h"
 #include "entropy.h"
 #include "kdf.h"
+#include "hkpair.h"
 #include "helix_config.h"
 
 static const char BODY_NONCE_TAG[] = "helix-dna-body";
+static const char V3_TAG[] = "helix-v3-external";
 
 static void store32_be(uint8_t* p, uint32_t v)
 {
@@ -60,9 +62,44 @@ static void body_nonce(const uint8_t salt[DNA_SALT_LEN], uint8_t nonce[12])
     helix_memzero(digest, sizeof digest);
 }
 
+/* v3 session key: sha256(external kyber ss || chain key || tag) */
+static void v3_session_key(const uint8_t ss[32], const uint8_t chain[32],
+                           uint8_t out[32])
+{
+    uint8_t digest[SHA256_DIGEST];
+    sha256_ctx c;
+    sha256_init(&c);
+    sha256_update(&c, ss, 32);
+    sha256_update(&c, chain, 32);
+    sha256_update(&c, V3_TAG, sizeof V3_TAG - 1);
+    sha256_final(&c, digest);
+    memcpy(out, digest, 32);
+    helix_memzero(digest, sizeof digest);
+}
+
+static int output_exists(const char* path)
+{
+    FILE* f = fopen(path, "rb");
+    if (!f)
+        return 0;
+    fclose(f);
+    return 1;
+}
+
+static int map_pair_rc(int rc)
+{
+    switch (rc) {
+    case -4: return -4;   /* wrong pair passphrase */
+    case -5: return -5;
+    default: return -2;   /* io/format/kdf -> bad format for the caller */
+    }
+}
+
 int dna_parse_header(const uint8_t* hdr, dna_header_info* info)
 {
-    if (memcmp(hdr, DNA_MAGIC, 4) != 0 || hdr[4] != DNA_VERSION)
+    if (memcmp(hdr, DNA_MAGIC, 4) != 0)
+        return -2;
+    if (hdr[4] != DNA_VERSION && hdr[4] != DNA_VERSION_PREV)
         return -2;
     memcpy(info->salt, hdr + 5, DNA_SALT_LEN);
     info->iterations = load32_be(hdr + 37);
@@ -112,9 +149,10 @@ static int write_file(const char* path, const uint8_t* buf, size_t n)
     return 0;
 }
 
-int dna_encrypt_file(const char* in_path, const char* out_path,
-                     const char* mnemonic, const char* keychain_path,
-                     uint32_t generation)
+int dna_encrypt_file_ex(const char* in_path, const char* out_path,
+                        const char* mnemonic, const char* keychain_path,
+                        uint32_t generation, const char* pair_path,
+                        const char* pair_pass)
 {
     uint8_t header[DNA_HEADER_SIZE];
     uint8_t gen_key[32], session[32], nonce[12];
@@ -122,6 +160,8 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     size_t data_len = 0, meta_len, name_len, total;
     const char* base;
     int rc;
+    if (output_exists(out_path))
+        return -6;
     if (helix_generation_key(mnemonic, keychain_path, generation,
                              gen_key) != 0)
         return -3;
@@ -137,12 +177,44 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
         return -1;
     }
     memcpy(header, DNA_MAGIC, 4);
-    header[4] = DNA_VERSION;
+    header[4] = pair_path ? (uint8_t)DNA_VERSION
+                          : (uint8_t)DNA_VERSION_PREV;
     store32_be(header + 37, HELIX_PBKDF2_ITERS);
     store32_be(header + 41, generation);
-    header[45] = DNA_KDF_HYBRID;
+    header[45] = pair_path ? (uint8_t)DNA_KDF_EXTERNAL
+                           : (uint8_t)DNA_KDF_HYBRID;
     header[46] = DNA_CIPHER_CHACHA;
-    {
+    if (pair_path) {
+        uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
+        uint8_t ss[32], seed[32], comb[32];
+        int kdf;
+        rc = hkpair_load(pair_path, pair_pass, pk, sizeof pk, sk,
+                         sizeof sk, &kdf);
+        if (rc != 0) {
+            helix_memzero(gen_key, sizeof gen_key);
+            helix_memzero(session, sizeof session);
+            return map_pair_rc(rc);
+        }
+        if (entropy_fill(seed, 32) != 0 ||
+            helix_kyber_encaps(seed, 32, pk, header + DNA_HEADER_BASE,
+                               ss) != 0) {
+            helix_memzero(pk, sizeof pk);
+            helix_memzero(sk, sizeof sk);
+            helix_memzero(gen_key, sizeof gen_key);
+            helix_memzero(session, sizeof session);
+            return -3;
+        }
+        v3_session_key(ss, gen_key, comb);
+        memcpy(gen_key, comb, 32);
+        store32_be(header + 37,
+                   (kdf == HKP_KDF_ARGON2ID) ? DNA_PAIR_ARGON2ID
+                                             : DNA_PAIR_PBKDF2);
+        helix_memzero(pk, sizeof pk);
+        helix_memzero(sk, sizeof sk);
+        helix_memzero(ss, sizeof ss);
+        helix_memzero(seed, sizeof seed);
+        helix_memzero(comb, sizeof comb);
+    } else {
         uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
         uint8_t ss[32], comb[32];
         if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
@@ -210,15 +282,16 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     return rc;
 }
 
-int dna_decrypt_file(const char* in_path, const char* out_path,
-                     const char* mnemonic, const char* keychain_path)
+int dna_decrypt_file_ex(const char* in_path, const char* out_path,
+                        const char* mnemonic, const char* keychain_path,
+                        const char* pair_path, const char* pair_pass)
 {
     uint8_t header[DNA_HEADER_SIZE], gen_key[32], session[32], nonce[12];
     uint8_t *file = NULL, *plain = NULL;
     dna_header_info info;
     size_t file_len, ct_len, name_len, data_len, meta_len;
     uint64_t stored_size;
-    int rc = 0;
+    int rc = 0, is_v3;
     file = read_file(in_path, &file_len);
     if (!file || file_len < DNA_HEADER_SIZE + AEAD_TAG + 3) {
         free(file);
@@ -229,10 +302,23 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
         free(file);
         return -2;
     }
-    if ((info.kdf_type != DNA_KDF_PBKDF2 && info.kdf_type != DNA_KDF_HYBRID) ||
-        info.cipher != DNA_CIPHER_CHACHA) {
+    if (info.cipher != DNA_CIPHER_CHACHA) {
         free(file);
         return -2;
+    }
+    /* a v2 file must not claim the v3-only kdf; v3 files may use any */
+    if (header[4] == DNA_VERSION_PREV &&
+        info.kdf_type != DNA_KDF_PBKDF2 &&
+        info.kdf_type != DNA_KDF_HYBRID) {
+        free(file);
+        return -2;
+    }
+    is_v3 = (info.kdf_type == DNA_KDF_EXTERNAL);
+    if (is_v3 && !pair_path) {
+        /* v3 needs the external pair; report auth failure so a wrong
+           mnemonic and a missing pair are indistinguishable */
+        free(file);
+        return -4;
     }
     if (info.generation > DNA_GEN_MAX) {
         free(file);
@@ -243,7 +329,31 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
         free(file);
         return -3;
     }
-    if (info.kdf_type == DNA_KDF_HYBRID) {
+    if (is_v3) {
+        uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
+        uint8_t ss[32], comb[32];
+        rc = hkpair_load(pair_path, pair_pass, pk, sizeof pk, sk,
+                         sizeof sk, NULL);
+        if (rc != 0) {
+            helix_memzero(gen_key, sizeof gen_key);
+            free(file);
+            return map_pair_rc(rc);
+        }
+        if (helix_kyber_decaps(gen_key, 32, sk, header + DNA_HEADER_BASE,
+                               ss) != 0) {
+            helix_memzero(pk, sizeof pk);
+            helix_memzero(sk, sizeof sk);
+            helix_memzero(gen_key, sizeof gen_key);
+            free(file);
+            return -4;
+        }
+        v3_session_key(ss, gen_key, comb);
+        memcpy(gen_key, comb, 32);
+        helix_memzero(pk, sizeof pk);
+        helix_memzero(sk, sizeof sk);
+        helix_memzero(ss, sizeof ss);
+        helix_memzero(comb, sizeof comb);
+    } else if (info.kdf_type == DNA_KDF_HYBRID) {
         uint8_t pk[KYBER_PUBLICKEYBYTES], sk[KYBER_SECRETKEYBYTES];
         uint8_t ss[32], comb[32];
         if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
@@ -304,4 +414,19 @@ out:
     free(plain);
     free(file);
     return rc;
+}
+
+int dna_encrypt_file(const char* in_path, const char* out_path,
+                     const char* mnemonic, const char* keychain_path,
+                     uint32_t generation)
+{
+    return dna_encrypt_file_ex(in_path, out_path, mnemonic, keychain_path,
+                               generation, NULL, NULL);
+}
+
+int dna_decrypt_file(const char* in_path, const char* out_path,
+                     const char* mnemonic, const char* keychain_path)
+{
+    return dna_decrypt_file_ex(in_path, out_path, mnemonic, keychain_path,
+                               NULL, NULL);
 }

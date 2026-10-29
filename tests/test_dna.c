@@ -63,6 +63,11 @@ int main(void)
     check(n == strlen(payload) && memcmp(back, payload, n) == 0,
           "roundtrip bitwise");
 
+    /* the a8 finding: encrypt must refuse to clobber an existing
+       archive instead of silently overwriting it */
+    check(dna_encrypt_file("/tmp/helix_t.in", "/tmp/helix_t.dna", M,
+                           NULL, 0) == -6, "encrypt refuses existing output");
+    remove("/tmp/helix_t.dna");
     /* backward compatibility: gen 0 file still decrypts */
     check(dna_encrypt_file("/tmp/helix_t.in", "/tmp/helix_t.dna", M,
                            NULL, 0) == 0, "encrypt gen 0");

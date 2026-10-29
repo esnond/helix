@@ -11,6 +11,7 @@
 #include "kdf.h"
 #include "keychain.h"
 #include "dna.h"
+#include "hkpair.h"
 
 static void usage(FILE* out)
 {
@@ -41,7 +42,15 @@ static void usage(FILE* out)
         "\n"
         "  decrypt <in.dna> <out> -m \"word word ...\" [-k keychain.db]\n"
         "      decrypt a .dna archive; the generation key is recomputed\n"
-        "      from the mnemonic, the keychain is only a cache\n");
+        "      from the mnemonic, the keychain is only a cache\n"
+        "\n"
+        "  pair create <file.hkpair> -p passphrase [-k pbkdf2|argon2id]\n"
+        "      create an external kyber-768 keypair for v3 .dna files;\n"
+        "      kdf defaults to argon2id. decryption then needs this file\n"
+        "      AND the mnemonic; the mnemonic alone fails\n"
+        "\n"
+        "  pair export <file.hkpair> <out.pub> -p passphrase\n"
+        "      write the raw 1184-byte public key for sharing\n");
 }
 
 static int cmd_gen_seed(int argc, char* argv[])
@@ -161,9 +170,11 @@ static int cmd_encrypt(int argc, char* argv[])
     const char* kch = NULL;
     const char* in = NULL;
     const char* out = NULL;
+    const char* pair = NULL;
+    const char* pair_pass = NULL;
     uint32_t gen = 0;
     int have_gen = 0, opt;
-    while ((opt = getopt(argc, argv, "m:k:g:")) != -1) {
+    while ((opt = getopt(argc, argv, "m:k:g:P:p:")) != -1) {
         switch (opt) {
         case 'm':
             mnemonic = optarg;
@@ -175,11 +186,17 @@ static int cmd_encrypt(int argc, char* argv[])
             gen = (uint32_t)strtoul(optarg, NULL, 10);
             have_gen = 1;
             break;
+        case 'P':
+            pair = optarg;
+            break;
+        case 'p':
+            pair_pass = optarg;
+            break;
         default:
             return 1;
         }
     }
-    if (argc - optind != 2 || !mnemonic) {
+    if (argc - optind != 2 || !mnemonic || (pair && !pair_pass)) {
         usage(stderr);
         return 1;
     }
@@ -191,17 +208,24 @@ static int cmd_encrypt(int argc, char* argv[])
         if (helix_current_generation(mnemonic, kch, &gen) != 0)
             gen = 0;
     }
-    switch (dna_encrypt_file(in, out, mnemonic, kch, gen)) {
+    switch (dna_encrypt_file_ex(in, out, mnemonic, kch, gen, pair,
+                                pair_pass)) {
     case 0:
-        fprintf(stderr, "helix: encrypted %s -> %s (generation %u)\n",
-                in, out, gen);
+        fprintf(stderr, "helix: encrypted %s -> %s (generation %u%s)\n",
+                in, out, gen, pair ? ", external pair" : "");
         return 0;
     case -3:
         fprintf(stderr, "helix: generation %u unavailable\n", gen);
         return 4;
+    case -4:
+        fprintf(stderr, "helix: pair passphrase rejected\n");
+        return 5;
     case -5:
         fprintf(stderr, "helix: out of memory\n");
         return 5;
+    case -6:
+        fprintf(stderr, "helix: %s already exists\n", out);
+        return 6;
     default:
         fprintf(stderr, "helix: encrypt failed (io error)\n");
         return 1;
@@ -214,8 +238,10 @@ static int cmd_decrypt(int argc, char* argv[])
     const char* kch = NULL;
     const char* in = NULL;
     const char* out = NULL;
+    const char* pair = NULL;
+    const char* pair_pass = NULL;
     int opt;
-    while ((opt = getopt(argc, argv, "m:k:")) != -1) {
+    while ((opt = getopt(argc, argv, "m:k:P:p:")) != -1) {
         switch (opt) {
         case 'm':
             mnemonic = optarg;
@@ -223,17 +249,23 @@ static int cmd_decrypt(int argc, char* argv[])
         case 'k':
             kch = optarg;
             break;
+        case 'P':
+            pair = optarg;
+            break;
+        case 'p':
+            pair_pass = optarg;
+            break;
         default:
             return 1;
         }
     }
-    if (argc - optind != 2 || !mnemonic) {
+    if (argc - optind != 2 || !mnemonic || (pair && !pair_pass)) {
         usage(stderr);
         return 1;
     }
     in = argv[optind];
     out = argv[optind + 1];
-    switch (dna_decrypt_file(in, out, mnemonic, kch)) {
+    switch (dna_decrypt_file_ex(in, out, mnemonic, kch, pair, pair_pass)) {
     case 0:
         fprintf(stderr, "helix: decrypted %s -> %s\n", in, out);
         return 0;
@@ -298,22 +330,119 @@ static int cmd_evolve(int argc, char* argv[])
     return 0;
 }
 
+static int cmd_pair_create(int argc, char* argv[])
+{
+    const char* pass = NULL;
+    const char* out = NULL;
+    int kdf = HKP_KDF_ARGON2ID, opt;
+    while ((opt = getopt(argc, argv, "p:k:")) != -1) {
+        switch (opt) {
+        case 'p':
+            pass = optarg;
+            break;
+        case 'k':
+            if (strcmp(optarg, "argon2id") == 0)
+                kdf = HKP_KDF_ARGON2ID;
+            else if (strcmp(optarg, "pbkdf2") == 0)
+                kdf = HKP_KDF_PBKDF2;
+            else {
+                fprintf(stderr, "helix: unknown kdf %s\n", optarg);
+                return 2;
+            }
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (argc - optind != 1 || !pass || !pass[0]) {
+        usage(stderr);
+        return 1;
+    }
+    out = argv[optind];
+    switch (hkpair_create(out, pass, kdf)) {
+    case 0:
+        fprintf(stderr, "helix: pair created: %s (%s)\n", out,
+                kdf == HKP_KDF_ARGON2ID ? "argon2id" : "pbkdf2");
+        return 0;
+    case -6:
+        fprintf(stderr, "helix: %s already exists\n", out);
+        return 6;
+    case -1:
+        fprintf(stderr, "helix: io error\n");
+        return 1;
+    default:
+        fprintf(stderr, "helix: pair creation failed\n");
+        return 2;
+    }
+}
+
+static int cmd_pair_export(int argc, char* argv[])
+{
+    const char* pass = NULL;
+    int opt;
+    while ((opt = getopt(argc, argv, "p:")) != -1) {
+        switch (opt) {
+        case 'p':
+            pass = optarg;
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (argc - optind != 2 || !pass) {
+        usage(stderr);
+        return 1;
+    }
+    switch (hkpair_export_pk(argv[optind], pass, argv[optind + 1])) {
+    case 0:
+        fprintf(stderr, "helix: public key written: %s\n",
+                argv[optind + 1]);
+        return 0;
+    case -4:
+        fprintf(stderr, "helix: pair passphrase rejected\n");
+        return 5;
+    default:
+        fprintf(stderr, "helix: pair export failed\n");
+        return 1;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
         usage(stderr);
         return 1;
     }
-    if (strcmp(argv[1], "gen-seed") == 0)
+    if (strcmp(argv[1], "gen-seed") == 0) {
+        optind = 1;
         return cmd_gen_seed(argc - 1, argv + 1);
-    if (strcmp(argv[1], "derive") == 0)
+    }
+    if (strcmp(argv[1], "derive") == 0) {
+        optind = 1;
         return cmd_derive(argc - 1, argv + 1);
-    if (strcmp(argv[1], "evolve") == 0)
+    }
+    if (strcmp(argv[1], "evolve") == 0) {
+        optind = 1;
         return cmd_evolve(argc - 1, argv + 1);
-    if (strcmp(argv[1], "encrypt") == 0)
+    }
+    if (strcmp(argv[1], "encrypt") == 0) {
+        optind = 1;
         return cmd_encrypt(argc - 1, argv + 1);
-    if (strcmp(argv[1], "decrypt") == 0)
+    }
+    if (strcmp(argv[1], "decrypt") == 0) {
+        optind = 1;
         return cmd_decrypt(argc - 1, argv + 1);
+    }
+    if (strcmp(argv[1], "pair") == 0 && argc >= 3 &&
+        strcmp(argv[2], "create") == 0) {
+        optind = 1;
+        return cmd_pair_create(argc - 2, argv + 2);
+    }
+    if (strcmp(argv[1], "pair") == 0 && argc >= 3 &&
+        strcmp(argv[2], "export") == 0) {
+        optind = 1;
+        return cmd_pair_export(argc - 2, argv + 2);
+    }
     usage(stderr);
     return 1;
 }
