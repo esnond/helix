@@ -8,5 +8,5 @@ seed=${2:-0x68757a7a6831}
 make clean >/dev/null
 LD_PRELOAD= make CFLAGS="-std=c99 -pedantic -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined -ffp-contract=off" tools/fuzz_dna >/dev/null
 mkdir -p results/fuzz_dna
-nohup ./tools/fuzz_dna "$iters" "$seed" > "results/fuzz_dna/run_$(date -u +%Y%m%dT%H%M%SZ).log" 2>&1 &
+nohup env LD_PRELOAD= ./tools/fuzz_dna "$iters" "$seed" > "results/fuzz_dna/run_$(date -u +%Y%m%dT%H%M%SZ).log" 2>&1 &
 echo "started pid $!"
