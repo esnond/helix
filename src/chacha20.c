@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "chacha20.h"
+#include "secure_mem.h"
 
 static uint32_t load32_le(const uint8_t* p)
 {
@@ -72,5 +73,5 @@ void chacha20_encrypt(uint8_t* data, size_t n, const uint8_t key[CHACHA20_KEY],
             data[i + (size_t)j] ^= ks[j];
         i += take;
     }
-    memset(ks, 0, sizeof ks);
+    helix_memzero(ks, sizeof ks);
 }

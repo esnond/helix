@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "helix_config.h"
+#include "secure_mem.h"
 #include "kdf.h"
 #include "bip39.h"
 #include "pbkdf2.h"
@@ -35,7 +36,7 @@ int helix_master_key_from_mnemonic(const char* mnemonic,
                                   &ent_len) != 0)
         return -1;
     helix_master_key(entropy, ent_len, salt, salt_len, mk);
-    memset(entropy, 0, sizeof entropy);
+    helix_memzero(entropy, sizeof entropy);
     return 0;
 }
 
@@ -53,7 +54,7 @@ static int petri_init(sim_t* sim, const uint8_t* mk, const char* connectome)
 {
     sim_opts_t opts;
     int i;
-    memset(sim, 0, sizeof *sim);
+    helix_memzero(sim, sizeof *sim);
     memset(&opts, 0, sizeof opts);
     opts.duration_s = (double)HELIX_KDF_STEPS;   /* ms, advisory only */
     opts.seed = key_seed(mk);
@@ -107,9 +108,9 @@ int helix_engine_phase(const uint8_t mk[HELIX_MASTER_KEY_LEN],
         stats->iters = HELIX_PBKDF2_ITERS;
         stats->steps = HELIX_KDF_STEPS;
     }
-    memset(acts, 0, sizeof acts);
-    memset(&hc, 0, sizeof hc);
-    memset(&sim, 0, sizeof sim);
+    helix_memzero(acts, sizeof acts);
+    helix_memzero(&hc, sizeof hc);
+    helix_memzero(&sim, sizeof sim);
     return rc;
 }
 
@@ -123,7 +124,7 @@ int helix_derive(const char* mnemonic,
     if (helix_master_key_from_mnemonic(mnemonic, salt, salt_len, mk) != 0)
         return -1;
     rc = helix_engine_phase(mk, connectome, out, stats);
-    memset(mk, 0, sizeof mk);
+    helix_memzero(mk, sizeof mk);
     return rc;
 }
 
@@ -133,7 +134,7 @@ static void master_fp(const uint8_t* mk, uint8_t fp[KEYCHAIN_FP_LEN])
     uint8_t digest[SHA256_DIGEST];
     sha256(mk, HELIX_MASTER_KEY_LEN, digest);
     memcpy(fp, digest, KEYCHAIN_FP_LEN);
-    memset(digest, 0, sizeof digest);
+    helix_memzero(digest, sizeof digest);
 }
 
 int helix_keychain_path(const uint8_t mk[HELIX_MASTER_KEY_LEN],
@@ -165,17 +166,17 @@ int helix_evolve(const char* mnemonic, const char* keychain_path,
     master_fp(mk, fp);
     if (keychain_path) {
         if (strlen(keychain_path) >= sizeof path) {
-            memset(mk, 0, sizeof mk);
+            helix_memzero(mk, sizeof mk);
             return -3;
         }
         strcpy(path, keychain_path);
     } else if (helix_keychain_path(mk, path, sizeof path) != 0) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return -4;
     }
     rc = keychain_open(&kc, path, fp);
     if (rc != 0) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return -3;
     }
     if (kc.n_entries == 0) {
@@ -220,9 +221,9 @@ int helix_evolve(const char* mnemonic, const char* keychain_path,
         *gen_out = next;
 out:
     keychain_close(&kc);
-    memset(mk, 0, sizeof mk);
-    memset(gp, 0, sizeof gp);
-    memset(gpp, 0, sizeof gpp);
+    helix_memzero(mk, sizeof mk);
+    helix_memzero(gp, sizeof gp);
+    helix_memzero(gpp, sizeof gpp);
     return rc;
 }
 
@@ -239,23 +240,23 @@ int helix_derive_generation(const char* mnemonic, const char* keychain_path,
     master_fp(mk, fp);
     if (keychain_path) {
         if (strlen(keychain_path) >= sizeof path) {
-            memset(mk, 0, sizeof mk);
+            helix_memzero(mk, sizeof mk);
             return -3;
         }
         strcpy(path, keychain_path);
     } else if (helix_keychain_path(mk, path, sizeof path) != 0) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return -4;
     }
     rc = keychain_open(&kc, path, fp);
     if (rc != 0) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return -3;
     }
     if (keychain_get(&kc, gen, key) != 0)
         rc = -3;
     keychain_close(&kc);
-    memset(mk, 0, sizeof mk);
+    helix_memzero(mk, sizeof mk);
     return rc;
 }
 
@@ -282,7 +283,7 @@ int helix_current_generation(const char* mnemonic, const char* keychain_path,
             *gen = kc.current_gen;
         keychain_close(&kc);
     }
-    memset(mk, 0, sizeof mk);
+    helix_memzero(mk, sizeof mk);
     return 0;
 }
 
@@ -306,14 +307,14 @@ int helix_generation_key(const char* mnemonic, const char* keychain_path,
         }
     }
     if (have_cache) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return 0;
     }
     /* recompute the chain: gen 0 is the engine phase, gen n the
        recombination of its two parents, exactly as helix_evolve */
     rc = helix_engine_phase(mk, NULL, g0, NULL);
     if (rc != 0) {
-        memset(mk, 0, sizeof mk);
+        helix_memzero(mk, sizeof mk);
         return -2;
     }
     if (gen == 0) {
@@ -324,7 +325,7 @@ int helix_generation_key(const char* mnemonic, const char* keychain_path,
         for (n = 1; n <= gen; n++) {
             if (evolution_recombine(mk, HELIX_MASTER_KEY_LEN, n,
                                     prev, prev2, cur) != 0) {
-                memset(mk, 0, sizeof mk);
+                helix_memzero(mk, sizeof mk);
                 return -2;
             }
             memcpy(prev2, prev, 32);
@@ -332,10 +333,10 @@ int helix_generation_key(const char* mnemonic, const char* keychain_path,
         }
         memcpy(key, prev, 32);
     }
-    memset(mk, 0, sizeof mk);
-    memset(g0, 0, sizeof g0);
-    memset(prev, 0, sizeof prev);
-    memset(prev2, 0, sizeof prev2);
-    memset(cur, 0, sizeof cur);
+    helix_memzero(mk, sizeof mk);
+    helix_memzero(g0, sizeof g0);
+    helix_memzero(prev, sizeof prev);
+    helix_memzero(prev2, sizeof prev2);
+    helix_memzero(cur, sizeof cur);
     return 0;
 }

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "sha512.h"
+#include "secure_mem.h"
 #include "sha512_k.h"
 
 static uint64_t rotr64(uint64_t x, int n)
@@ -100,7 +101,7 @@ void sha512_final(sha512_ctx* c, uint8_t out[SHA512_DIGEST])
     size_t tail_len = (c->buf_len < 112) ? SHA512_BLOCK - c->buf_len
                                          : 2 * SHA512_BLOCK - c->buf_len;
     int i;
-    memset(tail, 0, sizeof tail);
+    helix_memzero(tail, sizeof tail);
     tail[0] = 0x80;
     for (i = 0; i < 8; i++)
         tail[tail_len - 8 + i] = (uint8_t)(bits >> (56 - 8 * i));

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "aead.h"
+#include "secure_mem.h"
 
 static void pad16(poly1305_ctx* c, size_t n)
 {
@@ -43,8 +44,8 @@ void chacha20_poly1305_seal(uint8_t* ct, uint8_t tag[AEAD_TAG],
     le64(&pc, (uint64_t)aad_len);
     le64(&pc, (uint64_t)n);
     poly1305_final(&pc, tag);
-    memset(pkey, 0, sizeof pkey);
-    memset(&pc, 0, sizeof pc);
+    helix_memzero(pkey, sizeof pkey);
+    helix_memzero(&pc, sizeof pc);
 }
 
 int chacha20_poly1305_open(uint8_t* pt, const uint8_t* ct, size_t n,
@@ -66,11 +67,11 @@ int chacha20_poly1305_open(uint8_t* pt, const uint8_t* ct, size_t n,
     le64(&pc, (uint64_t)aad_len);
     le64(&pc, (uint64_t)n);
     poly1305_final(&pc, want);
-    memset(pkey, 0, sizeof pkey);
-    memset(&pc, 0, sizeof pc);
+    helix_memzero(pkey, sizeof pkey);
+    helix_memzero(&pc, sizeof pc);
     for (i = 0; i < AEAD_TAG; i++)
         diff |= (uint8_t)(want[i] ^ tag[i]);
-    memset(want, 0, sizeof want);
+    helix_memzero(want, sizeof want);
     if (diff)
         return -1;
     if (n > 0) {

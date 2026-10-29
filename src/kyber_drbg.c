@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "fips202.h"
+#include "secure_mem.h"
 #include "randombytes.h"
 
 static keccak_state g_state;

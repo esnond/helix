@@ -2,11 +2,12 @@
 #include <string.h>
 
 #include "hmac.h"
+#include "secure_mem.h"
 
 static void key_block(uint8_t block[SHA512_BLOCK],
                       const uint8_t* key, size_t key_len)
 {
-    memset(block, 0, SHA512_BLOCK);
+    helix_memzero(block, SHA512_BLOCK);
     if (key_len > SHA512_BLOCK) {
         sha512(key, key_len, block);   /* 64 byte digest, rest stays zero */
         return;
@@ -28,8 +29,8 @@ void hmac_sha512_init(hmac_sha512_ctx* hc, const uint8_t* key, size_t key_len)
         pad[i] = block[i] ^ 0x5c;
     sha512_init(&hc->outer_init);
     sha512_update(&hc->outer_init, pad, SHA512_BLOCK);
-    memset(block, 0, sizeof block);
-    memset(pad, 0, sizeof pad);
+    helix_memzero(block, sizeof block);
+    helix_memzero(pad, sizeof pad);
     hmac_sha512_reset(hc);
 }
 
@@ -50,5 +51,5 @@ void hmac_sha512_final(hmac_sha512_ctx* hc, uint8_t out[SHA512_DIGEST])
     sha512_final(&hc->inner, idigest);
     sha512_update(&outer, idigest, SHA512_DIGEST);
     sha512_final(&outer, out);
-    memset(idigest, 0, sizeof idigest);
+    helix_memzero(idigest, sizeof idigest);
 }

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "bip39.h"
+#include "secure_mem.h"
 #include "sha256.h"
 #include "pbkdf2.h"
 #include "wordlist.h"
@@ -97,7 +98,7 @@ int bip39_mnemonic_to_entropy(const char* mnemonic,
     char tok[16];
     size_t pos = 0;
     int words = 0, ent_bits, cs_bits, ent_bytes, i;
-    memset(stream, 0, sizeof stream);
+    helix_memzero(stream, sizeof stream);
     while (mnemonic[pos] != '\0') {
         int idx, base, b;
         if (words >= 24)
@@ -145,6 +146,6 @@ int bip39_seed(const char* mnemonic, const char* passphrase,
     pbkdf2_sha512((const uint8_t*)mnemonic, strlen(mnemonic),
                   (const uint8_t*)salt, sizeof SALT_PREFIX - 1 + n,
                   2048, out, BIP39_SEED_LEN);
-    memset(salt, 0, sizeof salt);
+    helix_memzero(salt, sizeof salt);
     return 0;
 }

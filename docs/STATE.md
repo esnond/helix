@@ -6,7 +6,7 @@ Written 2026-10-29.
 ## Position
 
 - phase: v1.0 run, stage 1 (gui rewrite) done
-- branch: v10-run (anchor tag v1.3-anchor), next: stage 2 secure zeroize
+- branch: v10-run (anchor tag v1.3-anchor), next: stage 3 .dna parser fuzzer
 - open item for stage 4: encrypt must refuse overwriting an existing .dna (A8 P2)
 - branch: `r3-r5-run`
 - anchor tag: `r2-anchor` (== main @ `de46886`)
@@ -34,6 +34,7 @@ Written 2026-10-29.
 | s1 | gui rewrite from scratch, v5 language, mouse-first | v1.0.1 | done | commit b320457, cargo test 7/7, gui_acceptance.md | b320457 |
 | s1.a7 | cancel semantics: c call not interruptible | v1.0.1 | named | AGENT_LOG A7, checklist item 18 | 72e320e |
 | s1.a8 | encrypt overwrites existing .dna silently | v1.0.1 | open | AGENT_LOG A8 | — |
+| s2 | secure scrub: volatile memzero + mlock, 60+ call sites | v1.0.2 | done | tests/test_secure_mem 4 ok, suite 12/12 | (stage2 commit) |
 | p0.2 | baseline test + manifest | 0 | done | `results/` | — |
 | p0.3 | v5 reference + constitution | 0 | done | `docs/design/` | (phase0 commit) |
 | p0.4 | ROLLBACK.md | 0 | done | `docs/ROLLBACK.md` | (phase0 commit) |

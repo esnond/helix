@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "sha256.h"
+#include "secure_mem.h"
 #include "sha256_k.h"
 
 static uint32_t rotr32(uint32_t x, int n)
@@ -96,7 +97,7 @@ void sha256_final(sha256_ctx* c, uint8_t out[SHA256_DIGEST])
     uint8_t tail[72];
     size_t tail_len = (c->buf_len < 56) ? 64 - c->buf_len : 128 - c->buf_len;
     int i;
-    memset(tail, 0, sizeof tail);
+    helix_memzero(tail, sizeof tail);
     tail[0] = 0x80;
     for (i = 0; i < 8; i++)
         tail[tail_len - 8 + i] = (uint8_t)(bits >> (56 - 8 * i));

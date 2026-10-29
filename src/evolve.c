@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "evolve.h"
+#include "secure_mem.h"
 #include "sha256.h"
 
 static void store32_be(uint8_t* p, uint32_t v)
@@ -62,8 +63,8 @@ int evolution_recombine(const uint8_t* master_key, size_t mk_len,
     }
     if (chosen < k)
         return -1;   /* unreachable: 512 draws suffice with margin */
-    memset(mat, 0, sizeof mat);
-    memset(blk, 0, sizeof blk);
+    helix_memzero(mat, sizeof mat);
+    helix_memzero(blk, sizeof blk);
     return 0;
 }
 

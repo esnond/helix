@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "poly1305.h"
+#include "secure_mem.h"
 
 static uint32_t load32_le(const uint8_t* p)
 {
@@ -150,7 +151,7 @@ void poly1305_final(poly1305_ctx* c, uint8_t tag[POLY1305_TAG])
         store32_le(hbuf + 12, c->h[3]);
     }
     memcpy(tag, hbuf, POLY1305_TAG);
-    memset(hbuf, 0, sizeof hbuf);
+    helix_memzero(hbuf, sizeof hbuf);
 }
 
 void poly1305(uint8_t tag[POLY1305_TAG], const uint8_t* msg, size_t n,

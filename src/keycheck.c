@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "keycheck.h"
+#include "secure_mem.h"
 #include "hmac.h"
 
 static const char DOMAIN[] = "helix-keycheck";
@@ -23,8 +24,8 @@ void keycheck_tag(const uint8_t key[32], uint32_t gen, uint8_t tag[32])
     hmac_sha512_final(&hc, out);
     for (i = 0; i < 32; i++)
         tag[i] = out[i];
-    memset(&hc, 0, sizeof hc);
-    memset(out, 0, sizeof out);
+    helix_memzero(&hc, sizeof hc);
+    helix_memzero(out, sizeof out);
 }
 
 int keycheck_verify(const uint8_t key[32], uint32_t gen,
@@ -36,6 +37,6 @@ int keycheck_verify(const uint8_t key[32], uint32_t gen,
     keycheck_tag(key, gen, want);
     for (i = 0; i < 32; i++)
         diff |= (uint8_t)(want[i] ^ tag[i]);
-    memset(want, 0, sizeof want);
+    helix_memzero(want, sizeof want);
     return diff == 0;
 }

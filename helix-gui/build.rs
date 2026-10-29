@@ -32,7 +32,7 @@ fn main() {
     }
     let helix_src = [
         "hex", "sha256", "sha512", "hmac", "pbkdf2", "bip39", "entropy",
-        "kdf", "keychain", "evolve", "keycheck", "chacha20", "poly1305",
+        "secure_mem", "kdf", "keychain", "evolve", "keycheck", "chacha20", "poly1305",
         "aead", "dna", "kyber_wrap", "kyber_drbg",
     ];
     for u in helix_src {

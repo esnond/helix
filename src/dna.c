@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "dna.h"
+#include "secure_mem.h"
 #include "kyber_wrap.h"
 #include "aead.h"
 #include "sha256.h"
@@ -56,7 +57,7 @@ static void body_nonce(const uint8_t salt[DNA_SALT_LEN], uint8_t nonce[12])
     sha256_update(&c, BODY_NONCE_TAG, sizeof BODY_NONCE_TAG - 1);
     sha256_final(&c, digest);
     memcpy(nonce, digest, 12);
-    memset(digest, 0, sizeof digest);
+    helix_memzero(digest, sizeof digest);
 }
 
 int dna_parse_header(const uint8_t* hdr, dna_header_info* info)
@@ -128,11 +129,11 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     /* order matters: the salt is written after the clear, otherwise the
        memset wipes it and every file carries an all-zero salt */
     if (entropy_fill(header + 5, DNA_SALT_LEN) != 0) {
-        memset(gen_key, 0, sizeof gen_key);
+        helix_memzero(gen_key, sizeof gen_key);
         return -1;
     }
     if (entropy_fill(session, 32) != 0) {
-        memset(gen_key, 0, sizeof gen_key);
+        helix_memzero(gen_key, sizeof gen_key);
         return -1;
     }
     memcpy(header, DNA_MAGIC, 4);
@@ -147,26 +148,26 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
         if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
             helix_kyber_encaps(gen_key, 32, pk, header + DNA_HEADER_BASE,
                                ss) != 0) {
-            memset(gen_key, 0, sizeof gen_key);
-            memset(session, 0, sizeof session);
+            helix_memzero(gen_key, sizeof gen_key);
+            helix_memzero(session, sizeof session);
             return -3;
         }
         helix_hybrid_key(gen_key, ss, comb);
         memcpy(gen_key, comb, 32);
-        memset(pk, 0, sizeof pk);
-        memset(sk, 0, sizeof sk);
-        memset(ss, 0, sizeof ss);
-        memset(comb, 0, sizeof comb);
+        helix_memzero(pk, sizeof pk);
+        helix_memzero(sk, sizeof sk);
+        helix_memzero(ss, sizeof ss);
+        helix_memzero(comb, sizeof comb);
     }
     /* wrap the session key, 48 bytes used of the 64 byte field.
        aad is the header prefix up to the esk field: the full header
        cannot cover its own encrypted contents */
     chacha20_poly1305_seal(header + 47, header + 47 + 32, session, 32,
                            header, 47, gen_key, header + 5);
-    memset(gen_key, 0, sizeof gen_key);
+    helix_memzero(gen_key, sizeof gen_key);
     data = read_file(in_path, &data_len);
     if (!data) {
-        memset(session, 0, sizeof session);
+        helix_memzero(session, sizeof session);
         return -1;
     }
     base = strrchr(in_path, '/');
@@ -174,7 +175,7 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     name_len = strlen(base);
     if (name_len > 255) {
         free(data);
-        memset(session, 0, sizeof session);
+        helix_memzero(session, sizeof session);
         return -1;
     }
     meta_len = 2 + name_len + 16;
@@ -182,7 +183,7 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     out = malloc(total);
     if (!out) {
         free(data);
-        memset(session, 0, sizeof session);
+        helix_memzero(session, sizeof session);
         return -5;
     }
     memcpy(out, header, DNA_HEADER_SIZE);
@@ -205,7 +206,7 @@ int dna_encrypt_file(const char* in_path, const char* out_path,
     rc = write_file(out_path, out, total);
     memset(out, 0, total);
     free(out);
-    memset(session, 0, sizeof session);
+    helix_memzero(session, sizeof session);
     return rc;
 }
 
@@ -248,28 +249,28 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
         if (helix_kyber_keypair(gen_key, 32, pk, sk) != 0 ||
             helix_kyber_decaps(gen_key, 32, sk, header + DNA_HEADER_BASE,
                                ss) != 0) {
-            memset(gen_key, 0, sizeof gen_key);
+            helix_memzero(gen_key, sizeof gen_key);
             free(file);
             return -3;
         }
         helix_hybrid_key(gen_key, ss, comb);
         memcpy(gen_key, comb, 32);
-        memset(pk, 0, sizeof pk);
-        memset(sk, 0, sizeof sk);
-        memset(ss, 0, sizeof ss);
-        memset(comb, 0, sizeof comb);
+        helix_memzero(pk, sizeof pk);
+        helix_memzero(sk, sizeof sk);
+        helix_memzero(ss, sizeof ss);
+        helix_memzero(comb, sizeof comb);
     }
     if (chacha20_poly1305_open(session, header + 47, 32, header + 47 + 32,
                                header, 47, gen_key, header + 5) != 0) {
-        memset(gen_key, 0, sizeof gen_key);
+        helix_memzero(gen_key, sizeof gen_key);
         free(file);
         return -4;
     }
-    memset(gen_key, 0, sizeof gen_key);
+    helix_memzero(gen_key, sizeof gen_key);
     ct_len = file_len - DNA_HEADER_SIZE - AEAD_TAG;
     plain = malloc(ct_len > 0 ? ct_len : 1);
     if (!plain) {
-        memset(session, 0, sizeof session);
+        helix_memzero(session, sizeof session);
         free(file);
         return -5;
     }
@@ -277,13 +278,13 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
     if (chacha20_poly1305_open(plain, file + DNA_HEADER_SIZE, ct_len,
                                file + DNA_HEADER_SIZE + ct_len, header,
                                DNA_HEADER_SIZE, session, nonce) != 0) {
-        memset(session, 0, sizeof session);
-        memset(plain, 0, ct_len);
+        helix_memzero(session, sizeof session);
+        helix_memzero(plain, ct_len);
         free(plain);
         free(file);
         return -4;
     }
-    memset(session, 0, sizeof session);
+    helix_memzero(session, sizeof session);
     name_len = ((size_t)plain[0] << 8) | plain[1];
     if (2 + name_len + 16 > ct_len) {
         rc = -2;
@@ -299,7 +300,7 @@ int dna_decrypt_file(const char* in_path, const char* out_path,
     if (write_file(out_path, plain + meta_len, data_len) != 0)
         rc = -1;
 out:
-    memset(plain, 0, ct_len);
+    helix_memzero(plain, ct_len);
     free(plain);
     free(file);
     return rc;

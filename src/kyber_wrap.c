@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "kem.h"
+#include "secure_mem.h"
 #include "kyber_wrap.h"
 #include "sha256.h"
 
@@ -52,5 +53,5 @@ void helix_hybrid_key(const uint8_t bio[32], const uint8_t pq[32],
     sha256_init(&c);
     sha256_update(&c, buf, sizeof buf);
     sha256_final(&c, out);
-    memset(buf, 0, sizeof buf);
+    helix_memzero(buf, sizeof buf);
 }

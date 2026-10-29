@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "pbkdf2.h"
+#include "secure_mem.h"
 #include "hmac.h"
 
 static void store32_be(uint8_t* p, uint32_t v)
@@ -34,7 +35,7 @@ static void dk_block(hmac_sha512_ctx* hc, const uint8_t* salt,
         for (j = 0; j < SHA512_DIGEST; j++)
             out[j] ^= u[j];
     }
-    memset(u, 0, sizeof u);
+    helix_memzero(u, sizeof u);
 }
 
 void pbkdf2_sha512(const uint8_t* pass, size_t pass_len,
@@ -54,9 +55,9 @@ void pbkdf2_sha512(const uint8_t* pass, size_t pass_len,
         if (take > SHA512_DIGEST)
             take = SHA512_DIGEST;
         memcpy(dk + done, block, take);
-        memset(block, 0, sizeof block);
+        helix_memzero(block, sizeof block);
         done += take;
         index++;
     }
-    memset(&hc, 0, sizeof hc);
+    helix_memzero(&hc, sizeof hc);
 }
