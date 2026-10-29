@@ -1,4 +1,7 @@
-# r1 spec: key evolution
+# r1 spec
+
+**historical milestone spec** (r1, kch1). the keychain part was
+superseded by kch2 in v1.0 — src/keychain.c, docs/RELEASE_v1.0.md.: key evolution
 
 status: implemented (r1). r0 derivation unchanged and pinned
 (tests/test_kdf.c, EXPECTED_KEY).

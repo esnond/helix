@@ -1,9 +1,10 @@
-# ROLLBACK — helix r3-r5-run
+# ROLLBACK — helix v10-run
 
 ## Anchor
-- Branch start: `r3-r5-run` (branched from `main` at `de46886`)
-- Tag: `r2-anchor` points to the last r2 commit before this run
-- Baseline: `results/r2-baseline.txt` (all tests green, 2026-10-29)
+- Branch: `v10-run` (branched from `main` at the v1.3 release commit)
+- Tag: `v1.3-anchor` points to the last v1.3 commit before this run
+- Baseline: green gates at anchor (make test + test-san + gate-libm +
+  cargo test, see docs/STATE.md)
 
 ## Undo a phase
 ```bash
@@ -25,8 +26,8 @@ git checkout r2-anchor -- path/to/file
 ## Restore original branch
 ```bash
 git checkout main
-git branch -D r3-r5-run    # only if run is abandoned
-git tag -d r2-anchor
+git branch -D v10-run      # only if run is abandoned
+git tag -d v1.3-anchor v1.0-rc
 ```
 
 ## Environment reset
@@ -37,6 +38,7 @@ git tag -d r2-anchor
 
 ## Verify rollback
 ```bash
-make test          # must be green
-cd helix-gui && cargo test   # must be 2/2
+make test                    # must be green (14 suites)
+make gate-libm               # must report no libm boundary
+cd helix-gui && cargo test   # must be 7/7
 ```

@@ -42,7 +42,9 @@ Decryption re-derives `sk` from the mnemonic, decapsulates `ct`, rebuilds
 
 **Does:** the file format and the key schedule already accept a
 post-quantum share, so a future format can store a kyber public key that
-is *not* derived from the mnemonic without another break. It also
+is *not* derived from the mnemonic without another break. [v1.0: that
+future format shipped — .dna v3 with the external .hkpair pair, see
+docs/dna_format.md. the "does not" below still describes v2 exactly.] It also
 exercises the hybrid combiner and pins its behaviour.
 
 **Does not:** raise the attack cost against an adversary who has the

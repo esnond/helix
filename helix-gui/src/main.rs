@@ -1,4 +1,4 @@
-//! helix-gui v2: the v5 design language over the c core. one unsafe
+//! helix-gui: the v5 design language over the c core. one unsafe
 //! boundary (core/helix_wrapper.rs over gui_api.c); no crypto in rust.
 
 #[path = "core/helix_wrapper.rs"]

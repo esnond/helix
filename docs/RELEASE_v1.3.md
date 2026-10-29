@@ -1,5 +1,8 @@
 # helix v1.3 — release notes
 
+**historical.** superseded by docs/RELEASE_v1.0.md; kept verbatim as
+the record of what the `v1.3` tag shipped.
+
 Date: 2026-10-29. Tag: `v1.3`. Base: r2 (`66b3485` lineage), branch
 `r3-r5-run`, anchor tag `r2-anchor`.
 

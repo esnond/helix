@@ -1,14 +1,20 @@
 # threat model
 
-scope: helix r1 + security hardening pass, as an offline cli tool.
-status: research prototype (see the README warning).
+scope: helix v1.0, as an offline cli tool plus a local gui. written
+for r1, updated as the scope grew (r2 .dna, r3 kyber, v1.0 v3 pair +
+kch2). status: research prototype (see the README warning).
 
 ## assets
 
 1. the mnemonic (master seed, 12-24 bip39 words) - root of everything
-2. master key material in process memory during derivation
-3. generations stored in the keychain file (all past keys, plaintext)
-4. files encrypted with generation keys (r2, future)
+2. the .hkpair pair file + its passphrase - second factor of every
+   v3 archive (v1.0); losing it loses those archives permanently
+3. master key material in process memory during derivation
+4. generations in the keychain: kch1 stored them in plaintext; since
+   kch2 (v1.0) the entry area is one chacha20poly1305 record under
+   sha256(mk || "helix-kch") — a disk thief without the mnemonic gets
+   nothing, and any modification is refused on open
+5. files encrypted with generation keys (.dna v1/v2/v3)
 
 ## attacker models
 
@@ -19,12 +25,14 @@ decrypt without the corresponding key. mac detects modification (r2).
 
 ### local attacker with disk access
 
-reads keychain.db: obtains every past generation in plaintext.
-mitigation is os level only (0600, user separation). does not obtain
-the mnemonic or future generations (masks are sha256(mk, n),
-preimage ~2^256). verdict: keychain compromise = past keys lost,
-future keys safe while the mnemonic is safe. documented honestly in
-docs/r1_security.md.
+r1 verdict (kch1): the keychain gave every past generation in
+plaintext; mitigation was os level only (0600). that gap is closed in
+v1.0: kch2 encrypts the whole entry area (docs/r1_security.md keeps
+the original r1 analysis verbatim as history). what the disk thief
+still gets: the mnemonic if it is stored somewhere, the .hkpair
+passphrase if it was typed in a shell (limitations 12), and the .dna
+ciphertexts. future keys stay safe without the mnemonic (masks are
+sha256(mk, n), preimage ~2^256).
 
 ### local malware / same user
 
@@ -43,18 +51,22 @@ search branches on the secret mnemonic - accepted for offline use
 (richer local attacks exist at this threat level), revisit at r4.
 measurements: results/timing_analysis/, results/side_channel_audit/.
 
-### network attacker (r4 scope, not yet applicable)
+### network attacker (r4 scope, cancelled)
 
-the directory service will expose generation verification over the
-network. timing masking (uniform response or delayed batch) is a
-recorded r4 requirement before any network exposure.
+the r4 directory service and helixd daemon were cancelled on the
+record (docs/r4_decision.md); nothing listens on a socket. the timing
+masking requirement stands as a precondition for any future network
+exposure.
 
 ### quantum attacker
 
 grover halves symmetric security: pbkdf2 cost drops, sha256 mask
-preimage ~2^128 - the design degrades, does not collapse. shor is
-irrelevant until public key crypto lands (r3 planned: kyber/
-dilithium hybrid). nothing quantum resistant is shipped today.
+preimage ~2^128 - the design degrades, does not collapse. r3 shipped
+a kyber-768 hybrid for .dna v2, and v1.0's v3 format encapsulates to
+an external kyber-768 pair — but kyber-768 is a pre-quantum
+assumption with no audit, and v2's pair still derives from the
+mnemonic, so "quantum resistant" is not a claim helix makes
+(docs/limitations.md 1, README).
 
 ## what helix protects against (r1, offline)
 
@@ -69,13 +81,15 @@ dilithium hybrid). nothing quantum resistant is shipped today.
 ## what helix does not protect against
 
 - compromise of the mnemonic (total loss, by design)
-- keychain theft (all past keys)
+- keychain theft by a mnemonic holder (kch2 hides it from a disk
+  thief without the mnemonic, not from the owner's own adversary)
 - malware on the host
 - side channels beyond those measured
-- cross environment replay errors (libm/arch differences - detect
-  via fingerprint verification, see float_analysis.md)
+- cross environment replay errors (libm and musl/arm64 boundaries
+  closed in v1.0, results/cross_platform/; macos/windows unproven)
 
 ## out of scope
 
-multi user operation, concurrent keychain writers, hardware side
-channels, formal verification of the engine, denial of service.
+multi user operation, hardware side channels, formal verification of
+the engine, denial of service. concurrent keychain writers on one
+file are serialized by flock since kch2 (second process gets -6).

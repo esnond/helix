@@ -38,7 +38,10 @@ find got hardened to a branchless fixed trip loop with bit identical
 output.
 
 **what did not work, or worked differently than expected.** three
-things. first, the spec we wrote ourselves was wrong in ways only
+things. [v1.0 status: the libm item below was closed - the
+derivation path now carries its own vendored math (gate-libm), and
+musl + arm64 replays reproduce the key bit for bit. the other two
+items stand.] first, the spec we wrote ourselves was wrong in ways only
 implementation could reveal: timestamps in the mutation seed would
 have destroyed cross machine replay; the bootstrap rule produced
 identical gen_0 and gen_1; the expected hamming distribution between
@@ -70,8 +73,12 @@ implementation.
 
 **do not use this for real secrets.** use libsodium or age. the
 repository says so in the first line, and now you know why in
-detail: unaudited hand written crypto, single architecture
-validation, no memory hardness, and a keychain that holds every past
-key in plaintext.
+detail: unaudited hand written crypto. the v1.0 run closed several of
+the review gaps - secrets scrubbed with volatile memzero and mlock, a
+20m-iteration asan/ubsan fuzz of the parser with zero findings, an
+argon2id (rfc 9106, kat-pinned) protected external kyber pair as a
+second factor, an encrypted keychain, and musl + arm64 replays with
+identical keys - but an audit is still missing, and that item has no
+self-serve fix.
 
 code and full measurement set: [repository url]

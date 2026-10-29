@@ -38,21 +38,31 @@ crypto or format logic lives in Rust.
 
 ## Deferred, and said out loud
 
+[r5 snapshot. v1.0 closure: sound SHIPPED (procedural sources,
+metal-box convolver, compressor, lowpass; cpal behind the `audio`
+cargo feature, off by default, silent backend without libasound2-dev);
+full ru/en i18n SHIPPED including dialogs and errors, parity tested;
+nacre sweep SHIPPED (1 px brass sweep on completion). still not
+implemented: dialog morph and row birth motion - egui 0.23 has no
+rect easing; documented in docs/r6_spec.md "out of scope".]
+
 - **Sound.** Nothing is shipped. The constitution's signal chain (convolver,
   inharmonic plate, coil hum) is not implemented; a `cpal` dependency was
   not added. Consequences: no audio bug, and no audio benefit. The rule
-  "all sound off by default" is satisfied trivially.
+  "all sound off by default" is satisfied trivially. [CLOSED in v1.0]
 - **Dialog morph and row birth motion.** egui 0.23 has no cubic-bezier
   easing on rects; the morph-from-source treatment is not implemented.
+  [still open]
 - **Full i18n.** Dialog bodies and help text are still English only.
-- **Nacre sweep on completion.** Not drawn.
+  [CLOSED in v1.0]
+- **Nacre sweep on completion.** Not drawn. [CLOSED in v1.0]
 
 ## Build
 
 ```
 cd helix-gui && cargo build      # debug
 cargo run                        # needs a display
-cargo test                       # 2 tests, both exercise the FFI core
+cargo test                       # 7 tests; parity, sound graph, ffi core
 ```
 
 `build.rs` compiles the C core with the same flags as the root Makefile,

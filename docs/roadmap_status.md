@@ -1,4 +1,4 @@
-# roadmap status after r5 (2026-10-29)
+# roadmap status — v1.0 (2026-10-29)
 
 ## done
 
@@ -10,22 +10,52 @@
   poly1305 per rfc 8439 with verbatim rfc vectors, cli encrypt/
   decrypt, 100 mb in 3.6 s. suite: 10 test binaries + shell gates,
   all green.
+- r3: post quantum hybrid — vendor/kyber (pq-crystals reference,
+  KYBER_K=3), .dna v2 with kdf_type 1, tests/test_kyber.c (14
+  checks), docs/r3_spec.md. honest boundary stated there: the kyber
+  keypair derives from the generation key, so v2 is hybrid plumbing,
+  NOT quantum safety.
+- r5: gui in the v5 design language (egui, both polarities, i18n).
+- v1.0 (branch v10-run, tag v1.0-rc): gui rewritten from scratch,
+  secure scrubbing, .dna parser fuzzer (20M asan clean), .dna v3
+  external kyber pair + argon2id (rfc 9106 kat), keychain kch2
+  (aead, flock, kch1 migration), musl + arm64 replays with identical
+  keys. spec with evidence pointers: docs/r6_spec.md.
 
-## r3: post quantum hybrid kem — DONE (2026-10-29)
+## r4: directory service — CANCELLED
 
-shipped: vendor/kyber (pq-crystals reference, KYBER_K=3), src/kyber_wrap.c,
-.dna v2 with kdf_type 1, tests/test_kyber.c (14 checks), docs/r3_spec.md.
-honest boundary stated there: the kyber keypair is derived from the
-generation key, so this is hybrid plumbing for a later external-keypair
-format, NOT quantum safety. v1 files are refused, not migrated.
+cancelled on the record (docs/r4_decision.md): the erlang control
+plane duplicates what the offline tool already does without a
+network surface, and a network verifier would reopen the h1 timing
+exposure. the design requirements (hmac challenge auth, uniform
+response delay before any network exposure) stand as preconditions
+if the idea is ever revisited.
 
-## r3 plan as written before the run (kept for the record)
+## open items (value order)
+
+1. third party audit of the whole c core (the standing item 1 in
+   docs/limitations.md; nothing the project can do alone)
+2. cache side channel measurement for the secret-derived indexing in
+   src/evolve.c (timing is measured, cache is not)
+3. streaming .dna mode for files beyond ram (~100 mb today)
+4. derivation kdf stays pbkdf2-600k; argon2id exists for pair files
+   only — switching the derivation forks every keychain, undecided
+5. macos / windows / big-endian replays
+6. gui: drag-and-drop, multi-select; sound feature needs
+   libasound2-dev on this machine (silent backend otherwise)
+
+## historical snapshot (r3-era, kept for the record)
+
+the r3-era roadmap below described the state when rust, erlang and
+musl were absent from the machine. all three blockers were cleared;
+the plan-vs-shipped deltas are recorded in docs/r6_spec.md.
+
+### r3 plan as written before the run
 
 plan (brief option C): vendor the pq-crystals/kyber reference c
-implementation under vendor/pqcrystals-kyber with full provenance
-notes (unaudited reference code, same honesty rules as the petri
-vendor import), wrap in src/kyber_wrapper.c, add kdf_type 1 to the
-.dna header (backward compatible, old files stay kdf_type 0),
+implementation with full provenance notes (unaudited reference code,
+same honesty rules as the petri vendor import), wrap in a wrapper
+module, add kdf_type 1 to the .dna header (backward compatible),
 hybrid shared secret = sha256(kyber_ss || bio_ss).
 
 integration notes recorded in advance:
@@ -39,33 +69,5 @@ integration notes recorded in advance:
   same way the rfc vectors pin chacha20
 - adversary review before the format gains kdf_type 1 in the wild
 
-estimate: a full session (vendoring, kat wiring, hybrid, tests).
-
-## r4: directory service — blocked on toolchain
-
-erlang is not installed on this machine (no erl, no rebar3). no
-skeleton is committed: code that cannot compile or run its tests does
-not land (green gate). unblock: sudo apt install erlang-base
-erlang-dev (and rebar3 if desired).
-
-design carried over from the brief, with hardening-pass amendments:
-
-- challenge auth = hmac over a server nonce with the generation key;
-  the h1 timing analysis requirement applies: a network verifier must
-  add uniform response delay or batch responses before exposure
-  (results/timing_analysis/mitigation_applied.md)
-- the keychain watcher (evolve --publish) must be read only toward
-  the keychain file; concurrent writers are out of scope per r1
-
-## r5: gui — blocked on toolchain and display
-
-no rust toolchain (no cargo, no rustc) and no wayland/x11 session
-available for validation here. same rule: nothing lands that cannot
-be built and tested. unblock: rustup + a wayland or x11 session;
-then winit/egui front end over the existing cli or a thin ffi.
-
-## sequencing note
-
-r3 is pure c and fits this repo and this toolchain: it is the only
-remaining milestone with no environment blocker. r4 and r5 wait for
-the environment, not for design work.
+all five notes were honored; see docs/r3_spec.md and
+docs/AGENT_LOG.md.

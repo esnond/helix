@@ -59,5 +59,16 @@ Build: `cd helix-gui && cargo build --release`, run:
 | 28 | hum starts while the queue is alive and stops after | |
 | 29 | every sound has its visual twin (nacre sweep, `!`, strip activity) | |
 
+## v3 external pair (stage 4)
+
+| # | item | ok |
+|---|---|---|
+| 30 | keys column shows the "external pair" section with a path field | |
+| 31 | "create pair…" opens the dialog: path, passphrase field, argon2id/pbkdf2 toggle; empty fields show an error, not a crash | |
+| 32 | "export pk" writes `<pair>.pub` and the status line confirms it | |
+| 33 | encrypt dialog offers "v2: phrase" / "v3: pair file"; v3 mode shows pair path + passphrase fields and remembers the path for the next dialog | |
+| 34 | encrypting twice to the same target shows the core "output file already exists" error in the dialog | |
+| 35 | a v3 archive decrypts with phrase + pair; with the phrase only it shows the authentication error | |
+
 Anything unchecked at tag time is listed in `docs/r5_spec.md` as open, not
 silently dropped.

@@ -2,13 +2,10 @@
 
 > **WARNING: research prototype, NOT production cryptography.**
 > do not use this for real secrets. the crypto is written from
-> scratch and has never been audited, the key derivation rests on a
-> float based simulation that now carries its own math (no libm) but is
-> still proven bitwise-identical only across compiler flags on one
-> architecture, and the side channel surface is analyzed for timing
-> only. for production use established
-> libraries: libsodium, age, openssl. this project exists to study a
-> question, not to protect anything.
+> scratch and has never been audited, and the side channel surface is
+> analyzed for timing only (cache, power, em unmeasured). for
+> production use established libraries: libsodium, age, openssl. this
+> project exists to study a question, not to protect anything.
 
 research prototype: biological dynamics in a key derivation function.
 a bip39 seed drives a petri connectome simulation, and the trajectory
@@ -86,9 +83,26 @@ docs/threat_model.md, docs/security_claims.md, docs/limitations.md.
 
     make            # -std=c99 -pedantic -Wall -Wextra -Werror -O2
                     # -ffp-contract=off, warnings are errors
-    make test       # unit vectors, kdf determinism, shell cmp gate
-    make test-san   # whole suite under asan+ubsan (~90 s)
+    make test       # 14 suites: kats, determinism, fuzz-checked format
+    make test-san   # whole suite under asan+ubsan
+    make gate-libm  # no libm symbol on the derivation path
     make clean
+    cd helix-gui && cargo build --release   # gui (see below)
+
+## gui
+
+    cd helix-gui && cargo build --release
+    install -Dm755 target/release/helix-gui ~/.local/bin/helix-gui
+
+mouse-first file manager over the same core: click to select, double
+click to open, labelled buttons for every action; keys column with
+the evolution chain, external pair section (create / export pk), job
+queue with cancel, ru/en interface, both polarities, settings
+persisted in ~/.config/helix/gui.conf. procedural sound (tick, plate,
+line, hum, fault per the constitution) behind the `audio` cargo
+feature — build with `cargo build --release --features audio` once
+libasound2-dev is installed; without it the gui runs silent and says
+so in the status bar. acceptance checklist: docs/gui_acceptance.md.
 
 ## usage
 
@@ -110,22 +124,43 @@ mutation of 32..64 bits (see docs/r1_spec.md):
     ./helix evolve -m "..."        # advances to gen 2, 3, ...
     ./helix derive -m "..." -g 5   # fetch generation 5 from the keychain
 
-encrypted archives (.dna format, r2):
+encrypted archives (.dna format, r2/v2 and v3):
 
     ./helix encrypt report.pdf report.pdf.dna -m "..."
     ./helix decrypt report.pdf.dna report.pdf -m "..."
 
-decryption needs only the mnemonic; the generation key is recomputed
-from the evolution chain, the keychain is a cache. format spec:
-docs/dna_format.md.
+v2 decryption needs only the mnemonic; the generation key is
+recomputed from the evolution chain, the keychain is a cache. v3
+files need a second factor — an external kyber-768 pair in a
+passphrase-encrypted .hkpair file; the mnemonic alone returns an
+authentication error:
 
-keychain: append-only $HOME/.helix-kch-<fingerprint>.db, 0600, all
-past generations retrievable. evolution stats: 32..64 flips per
-generation (mean 48), consecutive-generation hamming distance mean
-127.7 (results/r1_evolution_report.md).
+    ./helix pair create pair.hkpair -p "pair passphrase" [-k pbkdf2|argon2id]
+    ./helix pair export pair.hkpair pair.pub -p "pair passphrase"
+    ./helix encrypt f.bin f.bin.dna -m "..." -P pair.hkpair -p "pair passphrase"
+    ./helix decrypt f.bin.dna f.bin -m "..." -P pair.hkpair -p "pair passphrase"
+
+encrypt refuses to overwrite an existing output (exit 6). the pair
+kdf defaults to argon2id (rfc 9106 profile, kat-pinned; -k pbkdf2 for
+the 600k pbkdf2 profile). losing the .hkpair loses those archives
+permanently — back it up. format spec: docs/dna_format.md (v2 and v3
+sections).
+
+keychain kch2: $HOME/.helix-kch-<fingerprint>.db, 0600. the whole
+entry area is one chacha20poly1305 record under sha256(mk ||
+"helix-kch") with a fresh nonce per rewrite, and an exclusive flock
+guards the file while a handle is open. legacy kch1 files are
+migrated in place on the first evolve, or explicitly:
+
+    ./helix migrate-kch -m "..."
+
+evolution stats: 32..64 flips per generation (mean 48),
+consecutive-generation hamming distance mean 127.7
+(results/r1_evolution_report.md).
 
 key hex on stdout, engine stats on stderr. exit codes: 0 ok,
-2 invalid mnemonic, 3 engine init failure, 4 keychain error.
+1 io, 2 format, 4 key/generation unavailable, 5 authentication,
+6 output exists.
 
 ## key derivation (r0 spec)
 
@@ -162,12 +197,13 @@ per file salt. do not rely on the empty salt for anything real.
 ## security claims
 
 r1 forward secrecy is analyzed honestly in docs/r1_security.md:
-single leaked generation hides its neighbors behind ~2^256 masks, but
-the keychain stores every past key in plaintext, so keychain
-protection equals mnemonic protection. what r0/r1 do guarantee:
-bitwise reproducibility, checksum validated seeds, and zeroization of
-master key material after use (best effort, documented memset; the
-simulator also holds derived state).
+single leaked generation hides its neighbors behind ~2^256 masks.
+since kch2 the keychain itself is ciphertext without the mnemonic,
+but whoever holds the mnemonic can recompute every generation — the
+master key remains the root of trust. zeroization uses a volatile
+memzero the compiler cannot elide plus mlock page pinning
+(src/secure_mem.c, tests/test_secure_mem.c); the rust gui still holds
+the phrase in plain strings, documented in docs/limitations.md.
 
 sha256, sha512 (fips 180-4), hmac-sha512 (rfc 2104), pbkdf2
 (rfc 8018) written from spec, no external crypto library. round
@@ -182,26 +218,37 @@ the english bip39 wordlist is pure ascii, so nfkd normalization is
 the identity; passphrases with non ascii characters are not
 normalized (documented in src/bip39.h).
 
-## security claims, r0
+## known limitations, honest
 
-known limitations, honest:
-
-- cross platform replay is expected to hold where the engine's does
-  (same architecture class, same flags) but is only tested on this
-  machine; a key derived elsewhere must be verified against a
-  recorded key fingerprint before trust
+- the crypto core is unaudited; hand written primitives are a red
+  flag by default (docs/limitations.md item 1)
+- side channels: timing measured with a calibrated harness; cache,
+  power and em are unmeasured
 - 2.8 s per derivation is by design (brute force cost), but it also
   makes interactive use slow
-- /dev/urandom only for seed generation; no hwrng fallback
-- memory zeroization is best effort memset, not page locking
+- /dev/urandom only for seed generation and v3 encapsulation; no
+  hwrng fallback
+- a v3 archive without its .hkpair file is unrecoverable
+  (docs/limitations.md item 11)
+
+the full list with residuals lives in docs/limitations.md; this
+section does not duplicate it.
 
 ## layout
 
-    src/          helix code: crypto core, bip39, kdf driver, cli
-    vendor/petri/ verbatim engine import, provenance in VENDORED.md
-    data/         bip39 english wordlist, official vector cache
-    tests/        vector and determinism tests, run_tests.sh
-    tools/        gen_vectors.py: generated headers + provenance
+    src/            helix code: crypto core, bip39, kdf driver, cli;
+                    vendored_math (no libm), argon2+blake2b, hkpair,
+                    kch2 keychain
+    vendor/petri/   verbatim engine import, provenance in VENDORED.md
+    vendor/kyber/   verbatim pq-crystals kyber-768 import
+    data/           bip39 english wordlist, official vector cache
+    helix-gui/      egui frontend, one ffi boundary (gui_api.c)
+    tests/          14 suites: kats, determinism, format, keychain
+    tools/          gen_vectors.py, fuzz targets, timing harnesses
+    scripts/        cross_libc.sh, cross_arch.sh, fuzz_dna.sh,
+                    push_run.sh
+    results/        measurement logs + release manifest
+    docs/           specs, threat model, claims, limitations
 
 ## connection to petri
 

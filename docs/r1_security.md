@@ -4,6 +4,12 @@ written from the inline adversary and methodologist passes (subagent
 spawns were blocked provider-side on 2026-10-28; review performed in
 session and recorded in the decision log as HX-4).
 
+**status: historical.** this analysis describes r1 (kch1). the
+plaintext-keychain items below were closed in v1.0 by kch2 (aead over
+the entry area, flock, in-place migration — src/keychain.c,
+docs/RELEASE_v1.0.md). the text is kept verbatim as the record of
+what r1 shipped; the deltas are marked in [brackets].
+
 ## what the evolution actually is
 
 the chain is a deterministic expansion of the master key:
@@ -24,7 +30,10 @@ generation values.
    computable. this is identical to r0 and is the stated limitation of
    the whole design: the master key is the root of trust.
 3. given the keychain WITHOUT the master key: all past generations are
-   readable (they are stored in plaintext), and past masks are
+   readable (they are stored in plaintext) [kch2, v1.0: encrypted
+   under sha256(mk || "helix-kch") — a disk copy is useless without
+   the mnemonic; the algebraic mask relation below no longer helps
+   either], and past masks are
    algebraically recoverable (mask_n = gen_n ^ gen_{n-1} ^ gen_{n-2}),
    but future generations remain hidden behind future masks.
 4. wrong master key material (one byte off) produces output at
@@ -40,7 +49,9 @@ but the operationally meaningful statement is weaker:
   keychain has every past generation. forward secrecy in the standard
   sense (past keys stay secret after a long-term secret compromise)
   does NOT hold against keychain compromise, because there is nothing
-  to reveal: the keys are on disk.
+  to reveal: the keys are on disk. [v1.0, kch2: the disk copy is now
+  ciphertext; this item describes the r1-era gap it was written
+  against.]
 - what holds: past generations are not derivable from a single leaked
   generation, and future generations are not predictable from the full
   keychain without the master key.
@@ -65,6 +76,9 @@ but the operationally meaningful statement is weaker:
 - the keychain is append-only but not tamper-evident: an attacker with
   write access can truncate it (losing generations) or overwrite
   entries in place. r2 should add a hash chain over entries; noted as
-  an r2 requirement.
+  an r2 requirement. [closed in v1.0 differently: kch2 authenticates
+  the whole entry area with chacha20poly1305 — truncation and
+  overwrite are refused on open, not merely recorded.]
 - single-user, single-process: no file locking; concurrent evolvers on
-  one keychain race (documented, not defended in r1).
+  one keychain race (documented, not defended in r1). [closed in v1.0:
+  exclusive flock for the handle lifetime, second process gets -6.]

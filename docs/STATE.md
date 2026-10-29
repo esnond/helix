@@ -1,15 +1,18 @@
-# STATE — helix r3-r5-run
+# STATE — helix v10-run
 
 Checkpoint file. Resume from here, never from zero.
-Written 2026-10-29.
+Written 2026-10-29, updated through stage 7.
 
 ## Position
 
-- phase: v1.0 run, stage 1 (gui rewrite) done
-- branch: v10-run (anchor tag v1.3-anchor), next: stage 4 .dna v3 external kyber keypair + argon2id
-- open item for stage 4: encrypt must refuse overwriting an existing .dna (A8 P2)
-- branch: `r3-r5-run`
-- anchor tag: `r2-anchor` (== main @ `de46886`)
+- phase: v1.0-rc — all seven stages done, tag `v1.0-rc` on `48155e8`
+- branch: `v10-run` (anchor tag `v1.3-anchor` == main @ v1.3)
+- open item A8 P2: closed in stage 4 (encrypt refuses an existing
+  output, error -6, tests in test_dna + test_hkpair)
+- next: owner acceptance (docs/gui_acceptance.md, 35 checks) ->
+  tag `v1.0` -> push via scripts/push_run.sh
+- superseded positions (r3-r5-run, r2-anchor) are history; see
+  docs/RELEASE_v1.3.md and docs/RELEASE_v1.0.md
 - head at v1.3: 040f7b0 (tag v1.3); tags r2-anchor, r3, r5
 
 ## Phase 0 exit criteria
@@ -43,7 +46,7 @@ Written 2026-10-29.
 
 ## next
 
-- owner: hands-on acceptance via docs/gui_acceptance.md (29 checks)
+- owner: hands-on acceptance via docs/gui_acceptance.md (35 checks)
 - after acceptance: tag v1.0, push via scripts/push_run.sh (owner types pat)
 | p0.2 | baseline test + manifest | 0 | done | `results/` | — |
 | p0.3 | v5 reference + constitution | 0 | done | `docs/design/` | (phase0 commit) |
