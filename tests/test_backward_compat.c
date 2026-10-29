@@ -35,7 +35,6 @@ static void fill(uint8_t* buf, int n, unsigned seed)
 
 int main(void)
 {
-    const uint8_t fp[KEYCHAIN_FP_LEN] = {0x0a, 1, 2, 3, 4, 5, 6, 7};
     uint8_t mk[MK_LEN];
     uint8_t chain[GENS][32];
     uint8_t tags[GENS][32];
@@ -54,14 +53,14 @@ int main(void)
         keycheck_tag(chain[i], (uint32_t)i, tags[i]);
 
     remove(KC_PATH);
-    check(keychain_open(&kc, KC_PATH, fp) == 0, "keychain open");
+    check(keychain_open(&kc, KC_PATH, mk) == 0, "keychain open");
     for (i = 0; i < GENS; i++)
         check(keychain_append(&kc, chain[i]) == 0, "append gen");
     keychain_close(&kc);
 
     /* reopen as if the chain evolved long ago; every past generation
        must still verify against its own tag */
-    check(keychain_open(&kc, KC_PATH, fp) == 0, "reopen");
+    check(keychain_open(&kc, KC_PATH, mk) == 0, "reopen");
     for (i = 0; i < GENS; i++) {
         check(keychain_get(&kc, (uint32_t)i, key) == 0 &&
               memcmp(key, chain[i], 32) == 0, "old gen retrievable");

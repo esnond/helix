@@ -9,9 +9,12 @@
 #include "bip39.h"
 #include "entropy.h"
 #include "kdf.h"
+#include "secure_mem.h"
 #include "keychain.h"
 #include "dna.h"
 #include "hkpair.h"
+#include "kdf.h"
+#include "secure_mem.h"
 
 static void usage(FILE* out)
 {
@@ -50,7 +53,12 @@ static void usage(FILE* out)
         "      AND the mnemonic; the mnemonic alone fails\n"
         "\n"
         "  pair export <file.hkpair> <out.pub> -p passphrase\n"
-        "      write the raw 1184-byte public key for sharing\n");
+        "      write the raw 1184-byte public key for sharing\n"
+        "\n"
+        "  migrate-kch -m \"word word ...\" [-k keychain.db]\n"
+        "      convert a legacy kch1 keychain to the encrypted kch2\n"
+        "      format in place; happens automatically on the first\n"
+        "      evolve otherwise\n");
 }
 
 static int cmd_gen_seed(int argc, char* argv[])
@@ -330,6 +338,61 @@ static int cmd_evolve(int argc, char* argv[])
     return 0;
 }
 
+static int cmd_migrate_kch(int argc, char* argv[])
+{
+    const char* mnemonic = NULL;
+    const char* kch = NULL;
+    uint8_t mk[HELIX_MASTER_KEY_LEN];
+    char path[4096];
+    keychain_t kc;
+    int opt, rc;
+    while ((opt = getopt(argc, argv, "m:k:")) != -1) {
+        switch (opt) {
+        case 'm':
+            mnemonic = optarg;
+            break;
+        case 'k':
+            kch = optarg;
+            break;
+        default:
+            return 1;
+        }
+    }
+    if (argc - optind != 0 || !mnemonic) {
+        usage(stderr);
+        return 1;
+    }
+    if (helix_master_key_from_mnemonic(mnemonic, NULL, 0, mk) != 0) {
+        fprintf(stderr, "helix: bad mnemonic\n");
+        return 2;
+    }
+    if (kch) {
+        if (strlen(kch) >= sizeof path) {
+            fprintf(stderr, "helix: path too long\n");
+            return 1;
+        }
+        strcpy(path, kch);
+    } else if (helix_keychain_path(mk, path, sizeof path) != 0) {
+        fprintf(stderr, "helix: HOME unset\n");
+        return 1;
+    }
+    rc = keychain_open(&kc, path, mk);
+    if (rc != 0) {
+        fprintf(stderr, "helix: keychain open failed (%d)\n", rc);
+        helix_memzero(mk, sizeof mk);
+        return 2;
+    }
+    rc = keychain_migrate(&kc);
+    if (rc == 0)
+        fprintf(stderr, "helix: keychain at %s is kch2 (%u generations)\n",
+                path, kc.n_entries);
+    else
+        fprintf(stderr, "helix: migration failed (%d)\n", rc);
+    keychain_close(&kc);
+    helix_memzero(mk, sizeof mk);
+    return rc == 0 ? 0 : 2;
+}
+
 static int cmd_pair_create(int argc, char* argv[])
 {
     const char* pass = NULL;
@@ -432,6 +495,10 @@ int main(int argc, char* argv[])
     if (strcmp(argv[1], "decrypt") == 0) {
         optind = 1;
         return cmd_decrypt(argc - 1, argv + 1);
+    }
+    if (strcmp(argv[1], "migrate-kch") == 0) {
+        optind = 1;
+        return cmd_migrate_kch(argc - 1, argv + 1);
     }
     if (strcmp(argv[1], "pair") == 0 && argc >= 3 &&
         strcmp(argv[2], "create") == 0) {

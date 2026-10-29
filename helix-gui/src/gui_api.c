@@ -31,7 +31,7 @@ int helix_gui_list_generations(const char* mnemonic,
                                unsigned char* out_keys, unsigned max,
                                unsigned* count, unsigned* current_gen)
 {
-    uint8_t mk[HELIX_MASTER_KEY_LEN], fp[KEYCHAIN_FP_LEN];
+    uint8_t mk[HELIX_MASTER_KEY_LEN];
     char defpath[4096];
     keychain_t kc;
     unsigned i;
@@ -48,7 +48,7 @@ int helix_gui_list_generations(const char* mnemonic,
        cache path was passed explicitly */
     if (keychain_path == NULL)
         keychain_path = defpath;
-    rc = keychain_open(&kc, keychain_path, fp);
+    rc = keychain_open(&kc, keychain_path, mk);
     if (rc != 0) {
         memset(mk, 0, sizeof mk);
         return -3;
