@@ -238,3 +238,11 @@ methodologist: new gui_flow_tests covers every gui action through the
 ffi (gen-seed, phrase validation, evolve, list, v2/v3 roundtrips,
 wrong phrase, wrong pair, overwrite refusal, pair export) — one
 assert per user-visible behavior, all traceable to a dialog. 8/8.
+
+A13 (2026-10-31): architect+adversary spawns for the r8 hole-closure
+research were blocked provider-side again ("unusual activity", same
+class as 2026-10-28). research performed inline; key finding verified
+against source: helix_generation_key re-derives any generation from
+the mnemonic alone (kdf.c:288, evolve.c:28), so the keychain is a
+cache and the multidevice merge protocol is unnecessary. see
+docs/plan_r8.md.
