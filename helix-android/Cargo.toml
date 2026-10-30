@@ -1,0 +1,25 @@
+[package]
+name = "helix-android"
+version = "1.0.0"
+edition = "2021"
+description = "android harness for the helix 1-bit mac gui"
+
+[dependencies]
+helix-gui = { path = "../helix-gui" }
+eframe = { version = "0.23", default-features = false, features = ["glow"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.13"
+ndk-context = "0.1"
+ndk-glue = "0.7"
+jni = "0.21"
+log = "0.4"
+
+[package.metadata.android]
+package = "ru.esnond.helix"
+apk_name = "helix"
+build_targets = ["aarch64-linux-android"]
+
+[package.metadata.android.sdk]
+min_sdk_version = 26
+target_sdk_version = 33

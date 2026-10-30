@@ -1,23 +1,9 @@
-//! helix-gui: the v5 design language over the c core. one unsafe
-//! boundary (core/helix_wrapper.rs over gui_api.c); no crypto in rust.
-
-#[path = "core/helix_wrapper.rs"]
-mod wrapper;
-
-mod app;
-mod bar_status;
-mod dialog;
-mod fonts;
-mod i18n;
-mod jobs;
-mod panel_files;
-mod panel_jobs;
-mod panel_keys;
-mod prefs;
-mod sound;
-mod theme;
+//! desktop entry: android lives in helix-android and reuses the
+//! helix_gui library.
 
 use eframe::egui;
+
+use helix_gui::{app, fonts, prefs};
 
 fn resolve_connectome() {
     if std::env::var_os("HELIX_CONNECTOME").is_some() {

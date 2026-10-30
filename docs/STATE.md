@@ -43,6 +43,7 @@ Written 2026-10-29, updated through stage 7.
 | s5 | keychain kch2 (aead, flock, kch1 in-place migration) | v1.0.5 | done | test_keychain 64/64; 14/14 suites; asan+ubsan clean; gate-libm ok; cargo 7/7 | (stage5 commit) |
 | s6 | cross-libc + arm64 replays | v1.0.6 | done | musl == glibc == aarch64(qemu), v2/v3 roundtrips, cross decrypt (results/cross_platform/) | (stage6 commit) |
 | s7 | release v1.0-rc | v1.0-rc | done | r6_spec, limitations, claims 8-9, README, RELEASE_v1.0, manifest; tag v1.0-rc | 48155e8 |
+| s8 | helix-android: 1-bit mac touch ui (shared lib), apk build script, docs/android.md | v1.0-rc+ | done | cargo check lib+android, cargo test 8/8, apk builds; same wrapper + pixel assets + MobileApp | (this commit) |
 
 ## next
 
