@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>helix: ключ из траектории червя</title>
+<meta name="description" content="исследовательский прототип: bip39 зерно ведёт симуляцию коннектома, траектория сети становится ключом. честно: энтропию это не добавляет.">
+<style>
+  :root{--bg:#f2f4ef;--card:#fbfcf9;--ink:#26333c;--mute:#6b7a72;--accent:#4a7862;--warn:#a8813c;--line:#d5ddd2}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:17px/1.75 'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE',cursive}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;
+    background-image:radial-gradient(#ccd5c6 1.1px,transparent 1.4px);background-size:26px 26px;opacity:.45}
+  .wrap{max-width:840px;margin:0 auto;padding:0 22px;position:relative}
+  a{color:var(--accent);text-decoration:underline wavy rgba(74,120,98,.5);text-underline-offset:4px}
+  .sk{border:2px solid var(--ink);background:var(--card);
+    border-radius:255px 18px 225px 18px/18px 225px 18px 255px;box-shadow:3px 4px 0 rgba(38,51,60,.12)}
+  .sk2{border-radius:18px 225px 18px 255px/255px 18px 225px 18px}
+  .rot-l{transform:rotate(-.6deg)} .rot-r{transform:rotate(.55deg)}
+  header{padding:52px 0 26px}
+  h1{font-size:clamp(30px,5vw,44px);margin:0}
+  h1 small{display:block;font-size:15px;color:var(--mute);margin-top:6px}
+  .warn{display:inline-block;margin-top:14px;padding:4px 14px;font-size:13px;color:var(--warn);
+    border:2px dashed var(--warn);border-radius:255px 15px 225px 15px/15px 225px 15px 255px}
+  section{padding:34px 0}
+  h2{font-size:23px;margin:0 0 14px}
+  p{margin:10px 0}
+  .flow{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:16px 0}
+  .step{padding:11px 13px;text-align:center;font-size:14.5px}
+  ul{padding-left:22px} li{margin:8px 0;font-size:15.5px}
+  footer{padding:24px 0 44px;color:var(--mute);font-size:13.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>helix<small>bip39 зерно ведёт червя по коннектому, траектория становится ключом</small></h1>
+    <span class="warn">research prototype, криптография не аудирована, для настоящих секретов libsodium</span>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>честный конвейер</h2>
+    <div class="flow">
+      <div class="sk rot-l step">bip39 зерно</div>
+      <div class="sk sk2 rot-r step">симуляция коннектома petri</div>
+      <div class="sk rot-r step">траектория сети</div>
+      <div class="sk sk2 rot-l step">ключ и .dna архив</div>
+    </div>
+    <p>самое честное предложение проекта, вынесенное в readme и повторённое здесь: траектория доказуемо не добавляет энтропии, каждый ключ детерминированная функция мастер ключа. что она добавляет: разнообразие ключей между генерациями и вычислительную стоимость, всё в воспроизводимом конвейере.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>что уже работает</h2>
+    <ul>
+      <li>генерация seed и детерминированный вывод ключа (r0), эволюция ключей (r1)</li>
+      <li>формат архива .dna v1, гибрид с kyber-768 v2, двухфакторный v3</li>
+      <li>графический интерфейс на v5 языке дизайна и android сборка</li>
+      <li>новая рабочая палитра интерфейса: <a href="https://github.com/esnond/helix/blob/master/docs/DESIGN_WORK_PALETTE.md">docs/DESIGN_WORK_PALETTE.md</a>, тёмная по умолчанию, без кричащих цветов</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="sk sk2 rot-l" style="display:inline-block;padding:12px 20px">
+      c99, без внешних библиотек, движок petri вендорен вербатим с хэшами · <a href="https://github.com/esnond/helix">github.com/esnond/helix</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

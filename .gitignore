@@ -8,3 +8,5 @@ helix
 !/tests/test_*.c
 !/tests/test_*.h
 /helix-gui/target
+helix-android/helix-release.keystore
+helix-android/target/
