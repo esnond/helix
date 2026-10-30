@@ -4,6 +4,10 @@ version = "1.0.0"
 edition = "2021"
 description = "android harness for the helix 1-bit mac gui"
 
+[lib]
+name = "helix_android"
+crate-type = ["cdylib"]
+
 [dependencies]
 helix-gui = { path = "../helix-gui" }
 eframe = { version = "0.23", default-features = false, features = ["glow"] }
@@ -14,6 +18,8 @@ ndk-context = "0.1"
 ndk-glue = "0.7"
 jni = "0.21"
 log = "0.4"
+android-activity = { version = "0.4.3", features = ["native-activity"] }
+egui = { version = "0.23", features = ["default"] }
 
 [package.metadata.android]
 package = "ru.esnond.helix"
@@ -23,3 +29,6 @@ build_targets = ["aarch64-linux-android", "armv7-linux-androideabi", "i686-linux
 [package.metadata.android.sdk]
 min_sdk_version = 26
 target_sdk_version = 33
+
+# [package.metadata.android.signing]
+# release = { keystore = "helix-release.keystore", alias = "helix", keystore_password = "helix123", key_password = "helix123" }
