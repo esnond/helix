@@ -15,11 +15,9 @@ eframe = { version = "0.31", default-features = false, features = ["glow"] }
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.13"
 ndk-context = "0.1"
-ndk-glue = "0.7"
 jni = "0.21"
 log = "0.4"
-android-activity = { version = "0.4.3", features = ["native-activity"] }
-egui = { version = "0.31", features = ["default"] }
+android-activity = { version = "0.6", features = ["native-activity"] }
 
 [package.metadata.android]
 package = "ru.esnond.helix"

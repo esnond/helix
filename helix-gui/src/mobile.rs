@@ -336,9 +336,9 @@ impl eframe::App for MobileApp {
 
         egui::CentralPanel::default()
             .frame(
-                egui::Frame::none()
+                egui::Frame::NONE
                     .fill(pixel::PAPER)
-                    .inner_margin(egui::Margin::symmetric(SP2, SP)),
+                    .inner_margin(egui::Margin::symmetric(SP2 as i8, SP as i8)),
             )
             .show(ctx, |ui| {
                 /* tabs: bold text, the active one underlined in accent */
@@ -611,11 +611,11 @@ impl MobileApp {
         .resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .frame(
-            egui::Frame::none()
+            egui::Frame::NONE
                 .fill(pixel::PAPER)
                 .stroke(egui::Stroke::new(1.0, pixel::INK))
                 .rounding(10.0)
-                .inner_margin(egui::Margin::symmetric(SP2, SP2)),
+                .inner_margin(egui::Margin::symmetric(SP2 as i8, SP2 as i8)),
         )
         .show(ctx, |ui| match d {
             Dlg::Encrypt { path } => {
@@ -782,11 +782,11 @@ impl MobileApp {
             .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -56.0])
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {
-                egui::Frame::none()
+                egui::Frame::NONE
                     .fill(pixel::PAPER)
                     .stroke(egui::Stroke::new(1.0, pixel::INK))
                     .rounding(8.0)
-                    .inner_margin(egui::Margin::symmetric(SP2, SP))
+                    .inner_margin(egui::Margin::symmetric(SP2 as i8, SP as i8))
                     .show(ui, |ui| {
                         ui.label(egui::RichText::new(m).font(crate::fonts::font_id(12.0, true)));
                     });

@@ -1,10 +1,7 @@
-//! android harness: prepares HOME and the connectome in the app's
-//! external files dir, then runs the same 1-bit mac ui as the desktop.
-//! on a desktop host it runs unchanged for development (cargo check /
-//! cargo run without the ndk), writing into helix-android-dev/.
-
-use android_activity::{AndroidApp, MainEvent, PollEvent};
-use log::LevelFilter;
+//! android harness (eframe 0.31): the AndroidApp goes into
+//! NativeOptions.android_app; winit drives the activity loop, egui
+//! renders — no ndk-glue, no custom event pump. on a desktop host the
+//! same crate runs as a dev harness writing into helix-android-dev/.
 
 #[cfg(not(target_os = "android"))]
 fn main() {
@@ -14,24 +11,30 @@ fn main() {
         "helix",
         eframe::NativeOptions::default(),
         Box::new(move |cc| {
-            Box::new(helix_gui::mobile::MobileApp::new(
+            Ok(Box::new(helix_gui::mobile::MobileApp::new(
                 std::path::PathBuf::from(home),
                 &cc.egui_ctx,
-            )) as Box<dyn eframe::App>
+            )) as Box<dyn eframe::App>)
         }),
     );
 }
 
 #[cfg(target_os = "android")]
+use android_activity::AndroidApp;
+
+#[cfg(target_os = "android")]
 #[no_mangle]
 fn android_main(app: AndroidApp) {
     android_logger::init_once(
-        android_logger::Config::default().with_max_level(LevelFilter::Info),
+        android_logger::Config::default().with_max_level(log::LevelFilter::Info),
     );
-    log::info!("helix android_main started");
+    log::info!("helix android_main");
 
-    let home = external_files_dir(&app).unwrap_or_else(|| std::path::PathBuf::from("/data/local/tmp"));
+    let home = external_files_dir(&app)
+        .unwrap_or_else(|| std::path::PathBuf::from("/data/local/tmp"));
     let _ = std::fs::create_dir_all(&home);
+    /* the c core wants the connectome by path: the table ships inside
+       the lib and is unpacked into the app files dir on first run */
     let csv = home.join("herm_302.csv");
     if !csv.exists() {
         let _ = std::fs::write(&csv, CONNECTOME);
@@ -41,41 +44,24 @@ fn android_main(app: AndroidApp) {
     std::env::set_var("HELIX_CONNECTOME", &csv);
     log::info!("helix home: {}", home.display());
 
-    let mut app = app;
-    // TODO: integrate egui rendering loop here
-    loop {
-        app.poll_events(Some(std::time::Duration::from_millis(16)), |event| {
-            match event {
-                PollEvent::Main(MainEvent::Destroy) => {
-                    log::info!("Destroy event");
-                    return;
-                }
-                PollEvent::Main(MainEvent::LowMemory) => {
-                    log::warn!("Low memory");
-                }
-                PollEvent::Main(MainEvent::SaveState { .. }) => {
-                    log::info!("Save state");
-                }
-                PollEvent::Main(MainEvent::Start) => {
-                    log::info!("Start");
-                }
-                PollEvent::Main(MainEvent::Resume { .. }) => {
-                    log::info!("Resume");
-                }
-                PollEvent::Main(MainEvent::Pause) => {
-                    log::info!("Pause");
-                }
-                PollEvent::Main(MainEvent::Stop) => {
-                    log::info!("Stop");
-                }
-                PollEvent::Main(MainEvent::ConfigChanged { .. }) => {
-                    log::info!("Config changed");
-                }
-                _ => {}
-            }
-        });
-    }
+    let options = eframe::NativeOptions {
+        android_app: Some(app),
+        ..Default::default()
+    };
+    let _ = eframe::run_native(
+        "helix",
+        options,
+        Box::new(move |cc| {
+            Ok(Box::new(helix_gui::mobile::MobileApp::new(
+                home.clone(),
+                &cc.egui_ctx,
+            )) as Box<dyn eframe::App>)
+        }),
+    );
 }
+
+#[cfg(target_os = "android")]
+const CONNECTOME: &str = include_str!("../../vendor/petri/data/herm_302.csv");
 
 #[cfg(not(target_os = "android"))]
 fn setup_desktop() {
@@ -88,12 +74,13 @@ fn setup_desktop() {
     std::env::set_var("HELIX_CONNECTOME", &csv);
 }
 
+/* app-specific external files dir via JNI:
+   ctx.getExternalFilesDir(null).getAbsolutePath() — adb and any mtp
+   file manager can reach it, so files move on and off the device
+   without a saf picker (roadmap item for v2) */
 #[cfg(target_os = "android")]
-const CONNECTOME: &str = include_str!("../../vendor/petri/data/herm_302.csv");
-
-#[cfg(target_os = "android")]
-fn external_files_dir(_app: &AndroidApp) -> Option<std::path::PathBuf> {
-    let ctx = ndk_context::android_context();
+fn external_files_dir(app: &AndroidApp) -> Option<std::path::PathBuf> {
+    let ctx = app.activity();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
     let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };

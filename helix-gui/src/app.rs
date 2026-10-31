@@ -483,7 +483,7 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::central_panel(&ctx.style())
                     .fill(theme::theme().bg)
-                    .inner_margin(egui::Margin::symmetric(12.0, 8.0)),
+                    .inner_margin(egui::Margin::symmetric(12, 8)),
             )
             .show(ctx, |ui| {
                 file_action = panel_files::show(
@@ -522,10 +522,9 @@ impl eframe::App for App {
         }
     }
 
-    fn on_close_event(&mut self) -> bool {
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.prefs.last_dir = Some(self.cwd.to_string_lossy().into_owned());
         self.prefs.save();
         self.sound.shutdown();
-        true
     }
 }

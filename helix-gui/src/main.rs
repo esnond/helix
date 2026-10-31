@@ -54,8 +54,9 @@ fn main() -> eframe::Result<()> {
     let prefs = prefs::Prefs::load();
     prefs::Prefs::apply(&prefs);
     let opts = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(prefs.win.0, prefs.win.1)),
-        fullscreen: wants_fullscreen(),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size(egui::vec2(prefs.win.0, prefs.win.1))
+            .with_fullscreen(wants_fullscreen()),
         ..Default::default()
     };
     eframe::run_native(
@@ -63,7 +64,7 @@ fn main() -> eframe::Result<()> {
         opts,
         Box::new(move |cc| {
             fonts::apply(&cc.egui_ctx);
-            Box::new(app::App::new(prefs)) as Box<dyn eframe::App>
+            Ok(Box::new(app::App::new(prefs)) as Box<dyn eframe::App>)
         }),
     )
 }

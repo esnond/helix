@@ -236,7 +236,7 @@ pub fn show(ctx: &egui::Context, d: &mut Dialog) -> Action {
         }
     });
     /* esc closes, but not while a text field owns the keys */
-    let text_focus = ctx.memory(|m| m.focus().is_some());
+    let text_focus = ctx.memory(|m| m.focused().is_some());
     if !text_focus && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         action = Action::Close;
     }

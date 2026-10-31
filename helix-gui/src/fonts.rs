@@ -39,7 +39,7 @@ fn load_first(paths: &[&str]) -> Option<egui::FontData> {
 pub fn apply(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     if let Some(f) = load_first(&SANS) {
-        fonts.font_data.insert("helix_ui".into(), f);
+        fonts.font_data.insert("helix_ui".into(), f.into());
         fonts
             .families
             .entry(egui::FontFamily::Proportional)
@@ -47,7 +47,7 @@ pub fn apply(ctx: &egui::Context) {
             .insert(0, "helix_ui".into());
     }
     if let Some(f) = load_first(&MONO) {
-        fonts.font_data.insert("helix_mono".into(), f);
+        fonts.font_data.insert("helix_mono".into(), f.into());
         fonts
             .families
             .entry(egui::FontFamily::Monospace)
