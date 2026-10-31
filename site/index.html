@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="assets/style.css?v=7">
+<link rel="stylesheet" href="assets/style.css?v=8">
 <style>:root{--paper:#f2f4ef;--card:#fbfcf9;--ink:#26333c;--mute:#6b7a72;--crayon:#4a7862;--hl:#e8ede3;--line:#d5ddd2}
 </style>
 <title>helix: ключ из траектории червя</title>
@@ -14,6 +14,7 @@
 
 <header class="center">
   <div class="wrap">
+    <img src="assets/mascot.jpg" alt="волк-каштан сторожит ключи" style="position:absolute;right:16px;top:40px;width:130px;padding:8px" class="sk rot-r">
     <h1>helix<small>bip39 зерно ведёт червя по коннектому, траектория становится ключом</small></h1>
     <span class="warn">research prototype, криптография не аудирована, для настоящих секретов libsodium</span>
   </div>
@@ -28,6 +29,7 @@
       <div class="sk rot-r step">траектория сети</div>
       <div class="sk sk2 rot-l step">ключ и .dna архив</div>
     </div>
+    <p style="display:flex;gap:14px;align-items:center"><img src="assets/wolf/sleep.jpg" alt="спящий волк: детерминизм" style="width:74px;border-radius:10px;padding:4px" class="sk">детерминизм здесь как этот спящий волк: одинаковый вход всегда даёт одинаковый сон.</p>
     <p>самое честное предложение проекта, вынесенное в readme и повторённое здесь: траектория доказуемо не добавляет энтропии, каждый ключ детерминированная функция мастер ключа. что она добавляет: разнообразие ключей между генерациями и вычислительную стоимость, всё в воспроизводимом конвейере.</p>
   </div>
 </section>

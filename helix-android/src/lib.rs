@@ -80,10 +80,11 @@ fn setup_desktop() {
    without a saf picker (roadmap item for v2) */
 #[cfg(target_os = "android")]
 fn external_files_dir(app: &AndroidApp) -> Option<std::path::PathBuf> {
-    let ctx = app.activity();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
+    let vm_ptr = app.vm_as_ptr();
+    let act_ptr = app.activity_as_ptr();
+    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr.cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;
-    let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+    let activity = unsafe { jni::objects::JObject::from_raw(act_ptr.cast()) };
     let file = env
         .call_method(
             &activity,
