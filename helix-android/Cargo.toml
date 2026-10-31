@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 helix-gui = { path = "../helix-gui" }
-eframe = { version = "0.23", default-features = false, features = ["glow"] }
+eframe = { version = "0.31", default-features = false, features = ["glow"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.13"
@@ -19,7 +19,7 @@ ndk-glue = "0.7"
 jni = "0.21"
 log = "0.4"
 android-activity = { version = "0.4.3", features = ["native-activity"] }
-egui = { version = "0.23", features = ["default"] }
+egui = { version = "0.31", features = ["default"] }
 
 [package.metadata.android]
 package = "ru.esnond.helix"

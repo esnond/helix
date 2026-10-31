@@ -5,7 +5,7 @@ edition = "2021"
 description = "v5 design language gui for the helix key manager"
 
 [dependencies]
-eframe = { version = "0.23", features = ["wayland"] }
+eframe = { version = "0.31", features = ["wayland"] }
 # the audio backend needs libasound2-dev; without it the build still
 # works and the engine degrades to a silent backend
 cpal = { version = "0.15", optional = true }
