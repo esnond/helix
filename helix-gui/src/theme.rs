@@ -36,22 +36,25 @@ pub const DARK: Theme = Theme {
     err: Color32::from_rgb(0xc2, 0x6a, 0x5a),
 };
 
+/* «бумага»: the owner-approved paper theme
+   (docs/design/design_decision.md); crimson is the single accent */
 pub const LIGHT: Theme = Theme {
-    bg: Color32::from_rgb(0xf2, 0xef, 0xe9),
-    bg2: Color32::from_rgb(0xea, 0xe6, 0xdd),
-    field: Color32::from_rgb(0xe5, 0xdf, 0xd4),
-    ink: Color32::from_rgb(0x22, 0x20, 0x1d),
-    ink2: Color32::from_rgb(0x64, 0x60, 0x5a),
-    line: Color32::from_rgb(0xdb, 0xd5, 0xc8),
-    line2: Color32::from_rgb(0xc9, 0xc2, 0xb2),
-    accent: Color32::from_rgb(0x7a, 0x5c, 0x1e),
-    accent2: Color32::from_rgb(0x5a, 0x45, 0x16),
-    ok: Color32::from_rgb(0x3f, 0x6b, 0x52),
-    warn: Color32::from_rgb(0x6f, 0x55, 0x18),
-    err: Color32::from_rgb(0x9c, 0x3f, 0x2e),
+    bg: Color32::from_rgb(0xf6, 0xf1, 0xe8),
+    bg2: Color32::from_rgb(0xfd, 0xfb, 0xf6),
+    field: Color32::from_rgb(0xf3, 0xed, 0xe1),
+    ink: Color32::from_rgb(0x2b, 0x26, 0x22),
+    ink2: Color32::from_rgb(0x7d, 0x75, 0x68),
+    line: Color32::from_rgb(0xec, 0xe5, 0xd5),
+    line2: Color32::from_rgb(0xd8, 0xd0, 0xc0),
+    accent: Color32::from_rgb(0xa8, 0x3a, 0x4d),
+    accent2: Color32::from_rgb(0x8c, 0x2f, 0x40),
+    ok: Color32::from_rgb(0x5a, 0x8a, 0x5e),
+    warn: Color32::from_rgb(0xa8, 0x81, 0x3c),
+    err: Color32::from_rgb(0xb3, 0x40, 0x2f),
 };
 
-static LIGHT_MODE: AtomicBool = AtomicBool::new(false);
+/* paper is the default polarity */
+static LIGHT_MODE: AtomicBool = AtomicBool::new(true);
 
 pub fn set_light(light: bool) {
     LIGHT_MODE.store(light, Ordering::Relaxed);
@@ -83,7 +86,7 @@ pub fn surface_hover() -> Color32 {
 pub fn btn(ui: &mut eframe::egui::Ui, label: &str, primary: bool) -> eframe::egui::Response {
     let t = theme();
     let (fill, text) = if primary {
-        (t.accent2, t.bg)
+        (t.accent, t.bg2)
     } else {
         (t.field, t.ink)
     };

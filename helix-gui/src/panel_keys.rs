@@ -95,6 +95,7 @@ fn dendrite(ui: &mut egui::Ui, list: &KeyList) {
 pub fn show(
     ui: &mut egui::Ui, keys: &Option<KeyList>, has_phrase: bool, sound_on: bool,
     pair_path: &mut String, pair_status: &mut Option<String>,
+    mascot: Option<&egui::TextureHandle>,
 ) -> Action {
     let t = theme::theme();
     let s = i18n::s();
@@ -192,5 +193,23 @@ pub fn show(
             action = Action::ToggleSound;
         }
     });
+    /* the owner's drawing (docs/design/design_decision.md) */
+    if let Some(tex) = mascot {
+        ui.add_space(8.0);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+            ui.vertical(|ui| {
+                ui.add(egui::Image::new(tex).fit_to_exact_size(egui::vec2(104.0, 104.0)));
+                ui.label(
+                    RichText::new(if i18n::lang() == i18n::Lang::Ru {
+                        "маскот, нарисован владельцем"
+                    } else {
+                        "mascot, drawn by the owner"
+                    })
+                    .small()
+                    .color(t.ink2),
+                );
+            });
+        });
+    }
     action
 }

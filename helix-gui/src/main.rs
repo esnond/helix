@@ -64,7 +64,7 @@ fn main() -> eframe::Result<()> {
         opts,
         Box::new(move |cc| {
             fonts::apply(&cc.egui_ctx);
-            Ok(Box::new(app::App::new(prefs)) as Box<dyn eframe::App>)
+            Ok(Box::new(app::App::new(prefs, &cc.egui_ctx)) as Box<dyn eframe::App>)
         }),
     )
 }
