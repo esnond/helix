@@ -45,6 +45,10 @@ Written 2026-10-29, updated through stage 7.
 | s7 | release v1.0-rc | v1.0-rc | done | r6_spec, limitations, claims 8-9, README, RELEASE_v1.0, manifest; tag v1.0-rc | 48155e8 |
 | s8 | helix-android: 1-bit mac touch ui (shared lib), apk build script, docs/android.md | v1.0-rc+ | done | cargo check lib+android, cargo test 8/8, apk builds; same wrapper + pixel assets + MobileApp | (this commit) |
 
+| r8.1 | eframe 0.23->0.31, native android render (AndroidApp->NativeOptions), ndk-glue dropped | r8 | done | cargo test 8/8; cargo apk builds + signs (debug 402MB fat) | (r8 commit) |
+| r8.2 | paper theme + mascot cutout in gui; kch.db to internal storage; clipboard warnings; ci.yml + android_manifest.txt | r8 | done | docs/design/design_decision.md; ci workflow | (r8 commit) |
+| r8.3 | owner hands-on: apk install (device pending), gui acceptance 35 checks, tag v1.0, push | r8 | open | adb install -r helix-android/target/debug/apk/helix.apk | — |
+
 ## next
 
 - owner: hands-on acceptance via docs/gui_acceptance.md (35 checks)
