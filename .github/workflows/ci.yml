@@ -1,0 +1,58 @@
+name: ci
+on:
+  push:
+    branches: [v10-run, main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: system deps (alsa for the audio feature build)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: c suite
+        run: |
+          make test
+      - name: sanitized c suite
+        run: |
+          make test-san
+      - name: gui tests
+        run: |
+          cd helix-gui && cargo test --lib
+
+  android:
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: sdk packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "ndk;25.2.9519653" "build-tools;33.0.2" "platforms;android-33"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: cargo-apk
+        run: cargo install cargo-apk --locked
+      - name: build fat apk + manifest
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/25.2.9519653
+        run: |
+          ./scripts/build_android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helix-apk
+          path: |
+            helix-android/target/debug/apk/helix.apk
+            results/release/android_manifest.txt

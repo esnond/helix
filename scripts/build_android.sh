@@ -30,6 +30,24 @@ export RANLIB_x86_64_linux_android="$TOOLCHAIN/llvm-ranlib"
 
 cd "$(dirname "$0")/../helix-android"
 cargo apk build --release
+
+# reproducibility manifest (determinism gate): binary shas per abi +
+# toolchain versions + compile flags
+mkdir -p ../results/release
+M=../results/release/android_manifest.txt
+{
+  echo "# helix android manifest: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "ndk: $(basename "$NDK_DIR")"
+  rustc -vV | sed 's/^/rustc /'
+  echo "targets: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android"
+  for so in target/aarch64-linux-android/release/libhelix_android.so \
+            target/armv7-linux-androideabi/release/libhelix_android.so \
+            target/i686-linux-android/release/libhelix_android.so \
+            target/x86_64-linux-android/release/libhelix_android.so; do
+    [ -f "$so" ] && echo "$(sha256sum "$so")"
+  done
+} > "$M"
+cat "$M"
 echo
 echo "Universal APK: $(cd ../target/release/apk && pwd)/helix.apk"
 echo "install: adb install -r target/release/apk/helix.apk"

@@ -42,7 +42,12 @@ fn android_main(app: AndroidApp) {
     std::env::set_var("HOME", &home);
     std::env::set_var("HELIX_HOME", &home);
     std::env::set_var("HELIX_CONNECTOME", &csv);
-    log::info!("helix home: {}", home.display());
+    /* the keychain lives in internal storage: external app dirs are
+       reachable over adb/mtp, and the kch db has no reason to leave
+       the sandbox */
+    let kch_dir = internal_files_dir(&app).unwrap_or_else(|| home.clone());
+    std::env::set_var("HELIX_KCH_DIR", &kch_dir);
+    log::info!("helix home: {} kch: {}", home.display(), kch_dir.display());
 
     let options = eframe::NativeOptions {
         android_app: Some(app),
@@ -72,6 +77,37 @@ fn setup_desktop() {
     let csv = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../vendor/petri/data/herm_302.csv");
     std::env::set_var("HELIX_CONNECTOME", &csv);
+}
+
+/* internal files dir via JNI: ctx.getFilesDir().getAbsolutePath() */
+#[cfg(target_os = "android")]
+fn internal_files_dir(app: &AndroidApp) -> Option<std::path::PathBuf> {
+    let vm_ptr = app.vm_as_ptr();
+    let act_ptr = app.activity_as_ptr();
+    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr.cast()) }.ok()?;
+    let mut env = vm.attach_current_thread().ok()?;
+    let activity = unsafe { jni::objects::JObject::from_raw(act_ptr.cast()) };
+    let file = env
+        .call_method(
+            &activity,
+            "getFilesDir",
+            "()Ljava/io/File;",
+            &[],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+    let path = env
+        .call_method(&file, "getAbsolutePath", "()Ljava/lang/String;", &[])
+        .ok()?
+        .l()
+        .ok()?;
+    let s = env
+        .get_string(&jni::objects::JString::from(path))
+        .ok()?
+        .to_string_lossy()
+        .into_owned();
+    Some(std::path::PathBuf::from(s))
 }
 
 /* app-specific external files dir via JNI:

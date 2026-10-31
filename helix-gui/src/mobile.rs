@@ -218,7 +218,8 @@ impl MobileApp {
     }
 
     fn kch(&self) -> PathBuf {
-        self.home.join("kch.db")
+        std::env::var("HELIX_KCH_DIR").map(|d| PathBuf::from(d).join("kch.db"))
+            .unwrap_or_else(|_| self.home.join("kch.db"))
     }
 
     fn load_chain(&mut self) {
@@ -717,6 +718,13 @@ impl MobileApp {
             }
             Dlg::Seed(text) => {
                 ui.label(egui::RichText::new(&text).font(crate::fonts::font_id(13.0, true)));
+                ui.label(
+                    egui::RichText::new(tr(
+                        "буфер обмена на android читают другие приложения",
+                        "other apps can read the android clipboard",
+                    ))
+                    .small(),
+                );
                 ui.add_space(SP2);
                 ui.horizontal(|ui| {
                     if mac_btn(ui, tr("копировать", "copy"), true, 110.0) {
@@ -767,7 +775,10 @@ impl MobileApp {
             },
             Some(Act::Copy(t)) => {
                 ctx.copy_text(t);
-                self.msg = Some((tr("скопировано", "copied").into(), true));
+                self.msg = Some((
+                    tr("скопировано; очисти буфер после вставки", "copied; clear the clipboard after pasting").into(),
+                    true,
+                ));
             }
             None => {}
         }
