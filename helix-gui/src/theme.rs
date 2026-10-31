@@ -21,40 +21,39 @@ pub struct Theme {
     pub err: Color32,
 }
 
+/* comfort pass 2026-10-31: the near-black lifted, brass softened;
+   semantics (ok/warn/err) untouched */
 pub const DARK: Theme = Theme {
-    bg: Color32::from_rgb(0x13, 0x13, 0x14),
-    bg2: Color32::from_rgb(0x18, 0x18, 0x1a),
-    field: Color32::from_rgb(0x1d, 0x1d, 0x20),
-    ink: Color32::from_rgb(0xd6, 0xd3, 0xcd),
-    ink2: Color32::from_rgb(0x8d, 0x8a, 0x84),
-    line: Color32::from_rgb(0x26, 0x26, 0x2a),
-    line2: Color32::from_rgb(0x33, 0x33, 0x38),
-    accent: Color32::from_rgb(0xc8, 0xa2, 0x4a),
+    bg: Color32::from_rgb(0x17, 0x17, 0x19),
+    bg2: Color32::from_rgb(0x1c, 0x1c, 0x1f),
+    field: Color32::from_rgb(0x21, 0x21, 0x25),
+    ink: Color32::from_rgb(0xd2, 0xcf, 0xc9),
+    ink2: Color32::from_rgb(0x92, 0x8f, 0x89),
+    line: Color32::from_rgb(0x2b, 0x2b, 0x30),
+    line2: Color32::from_rgb(0x3a, 0x3a, 0x41),
+    accent: Color32::from_rgb(0xc4, 0x9f, 0x55),
     accent2: Color32::from_rgb(0x8a, 0x6f, 0x33),
     ok: Color32::from_rgb(0x7f, 0xa8, 0x8f),
     warn: Color32::from_rgb(0xc2, 0x9a, 0x5a),
     err: Color32::from_rgb(0xc2, 0x6a, 0x5a),
 };
 
-/* «бумага»: the owner-approved paper theme
-   (docs/design/design_decision.md); crimson is the single accent */
 pub const LIGHT: Theme = Theme {
-    bg: Color32::from_rgb(0xf6, 0xf1, 0xe8),
-    bg2: Color32::from_rgb(0xfd, 0xfb, 0xf6),
-    field: Color32::from_rgb(0xf3, 0xed, 0xe1),
-    ink: Color32::from_rgb(0x2b, 0x26, 0x22),
-    ink2: Color32::from_rgb(0x7d, 0x75, 0x68),
-    line: Color32::from_rgb(0xec, 0xe5, 0xd5),
-    line2: Color32::from_rgb(0xd8, 0xd0, 0xc0),
-    accent: Color32::from_rgb(0xa8, 0x3a, 0x4d),
-    accent2: Color32::from_rgb(0x8c, 0x2f, 0x40),
-    ok: Color32::from_rgb(0x5a, 0x8a, 0x5e),
-    warn: Color32::from_rgb(0xa8, 0x81, 0x3c),
-    err: Color32::from_rgb(0xb3, 0x40, 0x2f),
+    bg: Color32::from_rgb(0xf0, 0xee, 0xe8),
+    bg2: Color32::from_rgb(0xe9, 0xe6, 0xde),
+    field: Color32::from_rgb(0xe4, 0xe1, 0xd8),
+    ink: Color32::from_rgb(0x22, 0x20, 0x1d),
+    ink2: Color32::from_rgb(0x64, 0x60, 0x5a),
+    line: Color32::from_rgb(0xdb, 0xd5, 0xc8),
+    line2: Color32::from_rgb(0xc9, 0xc2, 0xb2),
+    accent: Color32::from_rgb(0x7a, 0x5c, 0x1e),
+    accent2: Color32::from_rgb(0x5a, 0x45, 0x16),
+    ok: Color32::from_rgb(0x3f, 0x6b, 0x52),
+    warn: Color32::from_rgb(0x6f, 0x55, 0x18),
+    err: Color32::from_rgb(0x9c, 0x3f, 0x2e),
 };
 
-/* paper is the default polarity */
-static LIGHT_MODE: AtomicBool = AtomicBool::new(true);
+static LIGHT_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_light(light: bool) {
     LIGHT_MODE.store(light, Ordering::Relaxed);
@@ -86,7 +85,7 @@ pub fn surface_hover() -> Color32 {
 pub fn btn(ui: &mut eframe::egui::Ui, label: &str, primary: bool) -> eframe::egui::Response {
     let t = theme();
     let (fill, text) = if primary {
-        (t.accent, t.bg2)
+        (t.accent2, t.bg)
     } else {
         (t.field, t.ink)
     };

@@ -8,7 +8,6 @@ use crate::theme;
 pub fn show(
     ui: &mut egui::Ui, cwd: &str, gen: Option<u32>, kch: usize,
     cursor_on: bool, journal: Option<&str>, audio_ok: bool, sound_on: bool,
-    mascot: Option<&egui::TextureHandle>,
 ) {
     let t = theme::theme();
     let s = crate::i18n::s();
@@ -77,10 +76,4 @@ pub fn show(
             );
         });
     });
-
-    if let Some(tex) = mascot {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add(egui::Image::new(tex).fit_to_exact_size(egui::vec2(16.0, 16.0)));
-        });
-    }
 }

@@ -33,7 +33,6 @@ pub struct App {
     pub journal: String,
     blink_on: bool,
     blink_next: f64,
-    mascot: Option<egui::TextureHandle>,
     nacre_at: Option<f64>,
     hum_state: bool,
 }
@@ -60,7 +59,7 @@ fn now_s() -> f64 {
 }
 
 impl App {
-    pub fn new(prefs: Prefs, cc: &egui::Context) -> App {
+    pub fn new(prefs: Prefs) -> App {
         let cwd = prefs
             .last_dir
             .clone()
@@ -83,7 +82,6 @@ impl App {
             journal: String::new(),
             blink_on: true,
             blink_next: 0.0,
-            mascot: load_mascot(cc),
             nacre_at: None,
             hum_state: false,
             cwd,
@@ -437,7 +435,6 @@ impl eframe::App for App {
                     self.prefs.sound,
                     &mut self.pair_path,
                     &mut self.pair_status,
-                    self.mascot.as_ref(),
                 );
             });
 
@@ -477,7 +474,6 @@ impl eframe::App for App {
                     Some(&self.journal),
                     self.sound.available,
                     self.prefs.sound,
-                    self.mascot.as_ref(),
                 );
             });
 
@@ -531,18 +527,4 @@ impl eframe::App for App {
         self.prefs.save();
         self.sound.shutdown();
     }
-}
-
-/* the owner's original drawing, cut from the photo
-   (docs/design/design_decision.md); embedded at compile time */
-fn load_mascot(cc: &egui::Context) -> Option<egui::TextureHandle> {
-    let bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mascot.png"));
-    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
-    let size = [img.width() as usize, img.height() as usize];
-    let pixels = img.into_raw();
-    Some(cc.load_texture(
-        "mascot",
-        egui::ColorImage::from_rgba_unmultiplied(size, &pixels),
-        egui::TextureOptions::LINEAR,
-    ))
 }
